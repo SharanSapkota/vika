@@ -1,0 +1,36 @@
+services:
+  db:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: vika
+      POSTGRES_PASSWORD: vika
+      POSTGRES_DB: vika
+    ports:
+      - "5433:5432"
+    volumes:
+      - vika-pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U vika -d vika"]
+      interval: 2s
+      timeout: 3s
+      retries: 15
+
+  db-test:
+    profiles: ["test"]
+    image: postgres:16
+    environment:
+      POSTGRES_USER: vika
+      POSTGRES_PASSWORD: vika
+      POSTGRES_DB: vika_test
+    ports:
+      - "5434:5432"
+    tmpfs:
+      - /var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U vika -d vika_test"]
+      interval: 2s
+      timeout: 3s
+      retries: 15
+
+volumes:
+  vika-pgdata:
