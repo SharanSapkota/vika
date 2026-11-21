@@ -1,5 +1,3 @@
-#!/usr/bin/env node
-// Entry point for the `vika` command. Later: init, doctor, report, run, serve, mark-deploy, mcp.
 import { Command } from "commander";
 
 const program = new Command();
