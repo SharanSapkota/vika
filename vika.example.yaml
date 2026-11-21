@@ -1,0 +1,47 @@
+# Example vika.yaml for a small company with three microservices.
+# Copy it to vika.yaml next to your .env and change the paths.
+#
+# Secrets never go in this file. Put them in .env (or the real environment):
+#   DATABASE_URL=postgres://vika:password@localhost:5432/vika
+#   JIRA_BASE_URL, JIRA_EMAIL, JIRA_API_TOKEN   (when tracker.type is jira)
+#   LINEAR_API_KEY                              (when tracker.type is linear)
+
+services:
+  # Service names: lowercase letters, digits and dashes.
+  orders-api:
+    repo: ../orders-api # git checkout; relative paths are relative to this file
+    logs: /var/log/orders-api/app.log # a file path or glob
+    pathMap:
+      /app/src: src # stack traces say /app/src/...; the repo has src/...
+    # branch defaults to "main"; deploys default to { source: merges }
+
+  payments-worker:
+    repo: ../payments
+    logs:
+      command: docker logs --since 24h payments-worker # vika runs only this exact command
+    branch: production
+    deploys:
+      source: marker # deploys are reported with `vika mark-deploy`
+
+  storefront-web:
+    repo: ../monorepo
+    pathPrefix: apps/storefront # in a monorepo, only commits under this folder count
+    logs: /var/log/storefront/*.log
+    deploys:
+      source: merges
+
+tracker:
+  type: jira
+  project: OPS
+  # Or:  type: linear / team: ENG      Or:  type: none
+
+# Optional: `vika run` posts each new regression here once (event
+# regression.detected; see docs/report-schema.md). https only (plain http only
+# for localhost). To sign the body, set VIKA_WEBHOOK_SECRET in .env.
+webhook:
+  url: https://hooks.example.com/vika
+
+redact: # what to hide before anything is stored; default: all four
+  - email
+  - jwt
+  - ip
