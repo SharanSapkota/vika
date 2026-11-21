@@ -13,7 +13,9 @@
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "test": "vitest run"
+    "test": "vitest run",
+    "demo:fixture": "tsx scripts/build-demo-fixture.ts",
+    "demo:reset": "tsx scripts/reset-demo-fixture.ts"
   },
   "dependencies": {
     "commander": "^15.1.0",
