@@ -1,6 +1,6 @@
 {
   "name": "vika-cli",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "description": "Finds error patterns that first appeared after a deploy and names the suspect commit/PR.",
   "type": "module",
   "license": "MIT",
