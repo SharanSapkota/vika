@@ -5,7 +5,9 @@
   "type": "module",
   "license": "MIT",
   "bin": {
-    "vika": "dist/cli.js"
+    "vika": "dist/cli.js",
+    "vika-cli": "dist/cli.js"
+
   },
   "files": [
     "dist",
