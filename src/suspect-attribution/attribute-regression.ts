@@ -1,9 +1,7 @@
 import { assertSafeRevision } from "../deploys/run-git.js";
 import { applyPathMap, isRepoRelativePath } from "./apply-path-map.js";
-import { findCalleeLocation } from "./callee-files.js";
+import { DEFAULT_LANGUAGE } from "../log-parsing/languages.js";
 import { categorizeChangedFile } from "./changed-file-categories.js";
-import { findCrashLineInputs } from "./crash-line-inputs.js";
-import { findFunctionDefinitionLine, plainFunctionName } from "./function-names.js";
 import {
   blameLine,
   listChangedFiles,
@@ -13,6 +11,7 @@ import {
   readBlameIgnoreRevisions,
   readFileAtCommit,
 } from "./git-blame-reader.js";
+import { CODE_RULES, type CodeRules } from "./language-code-rules.js";
 import { scoreSuspects } from "./score-suspects.js";
 import type { AttributionInput, AttributionResult, Finding } from "./suspect-types.js";
 
@@ -46,9 +45,10 @@ function makeFinding(fields: Pick<Finding, "commitSha" | "strength" | "frameInde
   return { lineNumber: null, lineText: null, functionName: null, calleeName: null, fileCategory: null, ...fields };
 }
 
-async function readRepoFrames(input: AttributionInput, deploySha: string): Promise<RepoFrame[]> {
+async function readRepoFrames(input: AttributionInput, deploySha: string, rules: CodeRules): Promise<RepoFrame[]> {
   const repoFrames: RepoFrame[] = [];
   for (const [frameIndex, frame] of input.topFrames.entries()) {
+    if (rules.isLibraryFrame(frame.file)) continue;
     const filePath = applyPathMap(frame.file, input.pathMap);
     if (!isRepoRelativePath(filePath)) continue;
     const fileContent = await readFileAtCommit(input.repoPath, deploySha, filePath);
@@ -57,7 +57,7 @@ async function readRepoFrames(input: AttributionInput, deploySha: string): Promi
       frameIndex,
       filePath,
       lineNumber: frame.line,
-      functionName: plainFunctionName(frame.fn),
+      functionName: rules.readPlainFunctionName(frame.fn),
       fileContent,
       lineCount: countLines(fileContent),
     });
@@ -65,9 +65,35 @@ async function readRepoFrames(input: AttributionInput, deploySha: string): Promi
   return repoFrames;
 }
 
-async function listCommitsChangingFrameFunction(repoPath: string, previousSha: string, deploySha: string, frame: RepoFrame): Promise<string[]> {
+// The commits in the deploy that changed a named function. undefined means
+// the function could not be found, so the caller decides what to do instead.
+async function listCommitsChangingNamedFunction(
+  repoPath: string,
+  previousSha: string,
+  deploySha: string,
+  filePath: string,
+  fileContent: string,
+  functionName: string,
+  rules: CodeRules,
+  lineNumberInside?: number,
+): Promise<string[] | undefined> {
+  if (rules.findFunctionLineRange === null) return listCommitsChangingFunction(repoPath, previousSha, deploySha, filePath, functionName);
+  const functionRange = rules.findFunctionLineRange(fileContent, functionName, lineNumberInside);
+  if (functionRange === undefined) return undefined;
+  return listCommitsChangingLines(repoPath, previousSha, deploySha, filePath, functionRange.startLine, functionRange.endLine);
+}
+
+async function listCommitsChangingFrameFunction(
+  repoPath: string,
+  previousSha: string,
+  deploySha: string,
+  frame: RepoFrame,
+  rules: CodeRules,
+): Promise<string[]> {
   if (frame.functionName !== undefined) {
-    const commitShas = await listCommitsChangingFunction(repoPath, previousSha, deploySha, frame.filePath, frame.functionName);
+    const commitShas = await listCommitsChangingNamedFunction(
+      repoPath, previousSha, deploySha, frame.filePath, frame.fileContent, frame.functionName, rules, frame.lineNumber,
+    );
     if (commitShas !== undefined) return commitShas;
   }
   if (!hasLine(frame, frame.lineNumber)) return [];
@@ -82,6 +108,7 @@ async function collectTopFrameFindings(
   deploySha: string,
   topFrame: RepoFrame,
   ignoredRevisions: string[],
+  rules: CodeRules,
 ): Promise<Finding[]> {
   if (!hasLine(topFrame, topFrame.lineNumber)) return [];
   const findings: Finding[] = [];
@@ -99,7 +126,7 @@ async function collectTopFrameFindings(
     }),
   );
 
-  const crashLineInputs = findCrashLineInputs(topFrame.fileContent, topFrame.lineNumber, topFrame.functionName);
+  const crashLineInputs = rules.findCrashLineInputs(topFrame.fileContent, topFrame.lineNumber, topFrame.functionName);
 
   for (const inputLineNumber of crashLineInputs.inputLineNumbers) {
     const blamedInputLine = await blameLine(repoPath, deploySha, topFrame.filePath, inputLineNumber, ignoredRevisions);
@@ -116,14 +143,16 @@ async function collectTopFrameFindings(
   }
 
   for (const calleeName of crashLineInputs.calleeNames) {
-    const calleeLocation = findCalleeLocation(topFrame.fileContent, topFrame.filePath, calleeName);
+    const calleeLocation = rules.findCalleeLocation(topFrame.fileContent, topFrame.filePath, calleeName);
     if (calleeLocation === undefined) continue;
     for (const candidatePath of calleeLocation.candidatePaths) {
       const calleeFileContent = await readFileAtCommit(repoPath, deploySha, candidatePath);
       if (calleeFileContent === undefined) continue;
-      const definitionLine = findFunctionDefinitionLine(calleeFileContent, calleeLocation.definitionName);
+      const definitionLine = rules.findFunctionDefinitionLine(calleeFileContent, calleeLocation.definitionName);
       const commitShas = definitionLine
-        ? ((await listCommitsChangingFunction(repoPath, previousSha, deploySha, candidatePath, calleeLocation.definitionName)) ?? [])
+        ? ((await listCommitsChangingNamedFunction(
+            repoPath, previousSha, deploySha, candidatePath, calleeFileContent, calleeLocation.definitionName, rules,
+          )) ?? [])
         : [];
       for (const commitSha of commitShas) {
         findings.push(
@@ -153,19 +182,20 @@ export async function attributeRegression(input: AttributionInput): Promise<Attr
   const changedFiles = await listChangedFiles(repoPath, previousSha, deploySha);
   const changedFilesByCommit = await listChangedFilesByCommit(repoPath, previousSha, deploySha);
   const ignoredRevisions = await readBlameIgnoreRevisions(repoPath, deploySha);
-  const repoFrames = await readRepoFrames(input, deploySha);
+  const rules = CODE_RULES[input.language ?? DEFAULT_LANGUAGE];
+  const repoFrames = await readRepoFrames(input, deploySha, rules);
   const findings: Finding[] = [];
 
   const commitsChangingFile = (filePath: string) =>
     [...changedFilesByCommit.entries()].filter(([, commitFiles]) => commitFiles.includes(filePath)).map(([commitSha]) => commitSha);
 
   const topFrame = repoFrames[0];
-  if (topFrame !== undefined) findings.push(...(await collectTopFrameFindings(repoPath, previousSha, deploySha, topFrame, ignoredRevisions)));
+  if (topFrame !== undefined) findings.push(...(await collectTopFrameFindings(repoPath, previousSha, deploySha, topFrame, ignoredRevisions, rules)));
 
   for (const frame of repoFrames) {
     const frameFields = { frameIndex: frame.frameIndex, filePath: frame.filePath, functionName: frame.functionName ?? null };
     const isTopFrame = frame === topFrame;
-    for (const commitSha of await listCommitsChangingFrameFunction(repoPath, previousSha, deploySha, frame)) {
+    for (const commitSha of await listCommitsChangingFrameFunction(repoPath, previousSha, deploySha, frame, rules)) {
       findings.push(
         makeFinding({
           ...frameFields,

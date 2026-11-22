@@ -10,6 +10,8 @@ type ColorName = Exclude<keyof typeof COLOR_CODES, "reset">;
 
 const SHORT_SHA_LENGTH = 7;
 
+export const AI_OPINION_HEADING = "AI opinion (not part of the ranking):";
+
 function toPlainAscii(text: string): string {
   return text.replace(/[^\x20-\x7e]/g, "?");
 }
@@ -80,6 +82,13 @@ export function formatTerminalReport(report: Report, options: FormatOptions): st
     } else {
       lines.push("     Suspects:");
       regression.suspects.forEach((suspect, suspectIndex) => formatSuspect(suspect, suspectIndex + 1));
+    }
+    // Only after --explain; kept below the suspects so the ranking reads the same.
+    if (regression.explanation !== undefined) {
+      lines.push(`     ${AI_OPINION_HEADING}`);
+      const answerLines = regression.explanation === null ? ["none (nothing was sent, or the request failed)"] : regression.explanation.answerText.split("\n");
+      for (const answerLine of answerLines) lines.push(`       ${answerLine}`);
+      if (regression.explanation !== null) lines.push(`       (model: ${regression.explanation.model})`);
     }
   };
 

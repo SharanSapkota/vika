@@ -1,6 +1,7 @@
-import type { LogsSetting } from "../configuration/configuration-schema.js";
+import type { LogFormatSetting, LogsSetting } from "../configuration/configuration-schema.js";
 import type { Bookmark, Store } from "../database/store-types.js";
 import { buildClusters } from "../error-grouping/build-clusters.js";
+import { DEFAULT_LANGUAGE, type Language } from "../log-parsing/languages.js";
 import { parseLines } from "../log-parsing/parse-log-lines.js";
 import type { RedactionKind } from "../redaction/redaction-kinds.js";
 import { readNewLogLines } from "./read-new-log-lines.js";
@@ -17,6 +18,8 @@ export interface IngestInput {
   logs: LogsSetting;
   configurationDirectory: string;
   redactionKinds: readonly RedactionKind[];
+  language?: Language; // default "javascript"
+  logFormat?: LogFormatSetting; // default "auto"
 }
 
 const GLOB_CHARACTERS = /[*?[\]{}]/;
@@ -40,7 +43,8 @@ export async function ingestServiceLogs(input: IngestInput): Promise<IngestResul
       bookmark.firstReadAt = timestampRange.earliest;
     }
 
-    const { entries, skipped } = parseLines(newLines.lines, undefined, input.redactionKinds);
+    const format = input.logFormat === undefined || input.logFormat === "auto" ? undefined : input.logFormat;
+    const { entries, skipped } = parseLines(newLines.lines, format, input.redactionKinds, input.language ?? DEFAULT_LANGUAGE);
     const clustering = buildClusters(entries, serviceName, await store.getMinerState(serviceName), input.redactionKinds);
     await store.saveBatch({ service: serviceName, clusters: clustering.clusters, minerState: clustering.state, bookmark });
 

@@ -13,6 +13,7 @@ import { formatTerminalReport } from "../reporting/format-terminal-report.js";
 import type { FetchFunction } from "../ticket-trackers/tracker-types.js";
 import { formatDoctorReport } from "../doctor/format-doctor-report.js";
 import { runCreateTicketsCommand } from "./create-tickets-command.js";
+import { runExplainCommand } from "./explain-command.js";
 import { runDoctorCommand } from "./doctor-command.js";
 import { runInitCommand } from "./init-command.js";
 import { parsePort, runServeCommand } from "./serve-command.js";
@@ -27,7 +28,7 @@ export interface CliEnvironment {
   isOutputTerminal: boolean; // colors only on a real terminal
   isInputTerminal: boolean; // a person can answer questions
   ask: (question: string) => Promise<string>; // shows the question, returns the typed answer
-  fetchFunction: FetchFunction; // used only by --create-tickets
+  fetchFunction: FetchFunction; // used by --create-tickets, --explain, doctor, serve and the webhook
   environment: Record<string, string | undefined>;
   workingDirectory: string;
   clock: () => Date;
@@ -61,9 +62,12 @@ export async function runCli(argumentList: string[], cli: CliEnvironment): Promi
   // `report` and `run` do the same work and print the same report. `run` is
   // for cron: it never asks anything unless a person is at a terminal (no
   // terminal: no tickets, and it says so), and it uses exit code 2 for busy.
-  const runReportFlow = async (options: { config?: string; json?: boolean; createTickets?: boolean }, isRunCommand: boolean) => {
+  const runReportFlow = async (options: { config?: string; json?: boolean; createTickets?: boolean; explain?: boolean }, isRunCommand: boolean) => {
+    // `run` has no --explain option at all: cron never sends anything to an AI.
+    const isExplainRequested = !isRunCommand && options.explain === true;
     const result = await runReportCommand({
       ...commonOptions(options.config),
+      isExplainRequested,
       // Only `run` posts to the webhook; `report` never does.
       ...(isRunCommand ? { webhookFetchFunction: cli.fetchFunction } : {}),
     });
@@ -79,8 +83,20 @@ export async function runCli(argumentList: string[], cli: CliEnvironment): Promi
       if (serviceStatus.status === "failed") writeInfo(`FAILED ${serviceStatus.serviceName}: ${serviceStatus.message}\n`);
       if (serviceStatus.status === "busy") writeInfo(`BUSY ${serviceStatus.serviceName}: ${serviceStatus.message}\n`);
     }
-    if (options.json) cli.writeOutput(`${JSON.stringify(result.report, null, 2)}\n`);
-    else cli.writeOutput(`\n${formatTerminalReport(result.report, { useColor: cli.isOutputTerminal })}`);
+    // The AI step runs before the report is printed, so its answers can be
+    // shown with each regression. Its preview and questions go to stderr
+    // with --json. Tickets below always use the report without it.
+    const printedReport = isExplainRequested
+      ? await runExplainCommand({
+          configuration: result.configuration,
+          report: result.report,
+          serviceInputs: result.serviceInputs,
+          fetchFunction: cli.fetchFunction,
+          explainConsole: { isInteractive: cli.isInputTerminal && cli.isOutputTerminal, write: writeInfo, ask: cli.ask },
+        })
+      : result.report;
+    if (options.json) cli.writeOutput(`${JSON.stringify(printedReport, null, 2)}\n`);
+    else cli.writeOutput(`\n${formatTerminalReport(printedReport, { useColor: cli.isOutputTerminal })}`);
 
     let hasTicketFailure = false;
     // Without the flag, nothing below runs: no tracker is even created.
@@ -106,7 +122,8 @@ export async function runCli(argumentList: string[], cli: CliEnvironment): Promi
     .option("--config <path>", "path to vika.yaml (default: ./vika.yaml)")
     .option("--json", "print the report as JSON")
     .option("--create-tickets", "after the report, ask for approval and file one ticket per bad deploy")
-    .action((options: { config?: string; json?: boolean; createTickets?: boolean }) => runReportFlow(options, false));
+    .option("--explain", "ask an AI for an opinion on each regression; shows the exact text and asks before sending (needs explain.enabled in vika.yaml)")
+    .action((options: { config?: string; json?: boolean; createTickets?: boolean; explain?: boolean }) => runReportFlow(options, false));
 
   program
     .command("run")

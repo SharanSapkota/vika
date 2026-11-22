@@ -40,6 +40,7 @@ export async function analyzeService(
         deploySha: deploy.sha,
         previousSha: deploy.previousSha,
         topFrames: cluster?.topFrames ?? [],
+        language: serviceSettings.language,
         ...(serviceSettings.pathMap === undefined ? {} : { pathMap: serviceSettings.pathMap }),
         commitsInRange: deploy.previousSha === null ? [] : await listCommitsInRange(serviceSettings.repo, deploy.previousSha, deploy.sha),
       }),

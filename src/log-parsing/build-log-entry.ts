@@ -1,7 +1,8 @@
 import { redact } from "../redaction/redact-sensitive-text.js";
 import { ALL_REDACTION_KINDS, type RedactionKind } from "../redaction/redaction-kinds.js";
-import type { Frame, Level, LogEntry } from "./log-entry-types.js";
-import { parseFrame } from "./stack-frames.js";
+import { DEFAULT_LANGUAGE, type Language } from "./languages.js";
+import type { Level, LogEntry } from "./log-entry-types.js";
+import { STACK_TRACE_READERS } from "./stack-trace-readers.js";
 
 export interface EntryDraft {
   timestamp: string;
@@ -10,15 +11,14 @@ export interface EntryDraft {
   continuationLines: string[];
 }
 
-export function buildLogEntry(draft: EntryDraft, redactionKinds: readonly RedactionKind[] = ALL_REDACTION_KINDS): LogEntry {
-  const frames: Frame[] = [];
-  const messageLines = [draft.message.trim()];
-  for (const line of draft.continuationLines) {
-    const frame = parseFrame(line);
-    if (frame) frames.push(frame);
-    else if (!/^\s*at\s/.test(line) && line.trim() !== "") messageLines.push(line.trim());
-  }
-  const safeFrames = frames.map((frame) =>
+export function buildLogEntry(
+  draft: EntryDraft,
+  redactionKinds: readonly RedactionKind[] = ALL_REDACTION_KINDS,
+  language: Language = DEFAULT_LANGUAGE,
+): LogEntry {
+  const stackTrace = STACK_TRACE_READERS[language](draft.continuationLines);
+  const messageLines = [draft.message.trim(), ...stackTrace.messageLines];
+  const safeFrames = stackTrace.frames.map((frame) =>
     frame.fn === undefined
       ? { file: redact(frame.file, redactionKinds), line: frame.line }
       : { file: redact(frame.file, redactionKinds), line: frame.line, fn: redact(frame.fn, redactionKinds) },
@@ -34,5 +34,6 @@ export function buildLogEntry(draft: EntryDraft, redactionKinds: readonly Redact
     entry.file = topFrame.file;
     entry.lineNumber = topFrame.line;
   }
+  if (stackTrace.exceptionType !== undefined) entry.exceptionType = redact(stackTrace.exceptionType, redactionKinds);
   return entry;
 }

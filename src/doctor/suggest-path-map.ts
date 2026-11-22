@@ -1,4 +1,5 @@
 import { applyPathMap, isRepoRelativePath } from "../suspect-attribution/apply-path-map.js";
+import { isPythonLibraryFrame } from "../suspect-attribution/library-frames.js";
 import type { PathMap } from "../suspect-attribution/suspect-types.js";
 
 export type PathMapAdvice =
@@ -12,7 +13,12 @@ export async function adviseOnPathMap(
   pathMap: PathMap | undefined,
   doesRepoFileExist: (repoPath: string) => Promise<boolean>,
 ): Promise<PathMapAdvice> {
-  const appFramePaths = [...new Set(framePaths)].filter((framePath) => !framePath.includes("node_modules/") && !/^[A-Za-z]+:/.test(framePath));
+  // Library frames (node_modules, Python's site-packages, dist-packages and
+  // standard library) are never in the customer's repo, so they say nothing
+  // about the pathMap.
+  const appFramePaths = [...new Set(framePaths)].filter(
+    (framePath) => !framePath.includes("node_modules/") && !isPythonLibraryFrame(framePath) && !/^[A-Za-z]+:/.test(framePath),
+  );
   if (appFramePaths.length === 0) return { kind: "no stack traces" };
 
   let checkedCount = 0;

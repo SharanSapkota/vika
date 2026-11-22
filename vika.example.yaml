@@ -1,10 +1,11 @@
-# Example vika.yaml for a small company with three microservices.
+# Example vika.yaml for a small company with four microservices (one in Python).
 # Copy it to vika.yaml next to your .env and change the paths.
 #
 # Secrets never go in this file. Put them in .env (or the real environment):
 #   DATABASE_URL=postgres://vika:password@localhost:5432/vika
 #   JIRA_BASE_URL, JIRA_EMAIL, JIRA_API_TOKEN   (when tracker.type is jira)
 #   LINEAR_API_KEY                              (when tracker.type is linear)
+#   ANTHROPIC_API_KEY                           (when explain.enabled is true)
 
 services:
   # Service names: lowercase letters, digits and dashes.
@@ -30,6 +31,17 @@ services:
     deploys:
       source: merges
 
+  # A Python backend (gunicorn + uvicorn + FastAPI) in Docker. No
+  # --timestamps: its log lines carry their own time. 2>&1 keeps errors.
+  checkout-api:
+    repo: ../checkout-api
+    logs:
+      command: docker logs --since=48h checkout-api 2>&1
+    language: python # default: javascript
+    logFormat: text # default: auto (guess from the first 200 lines)
+    pathMap:
+      /app/src: src
+
 tracker:
   type: jira
   project: OPS
@@ -40,6 +52,16 @@ tracker:
 # for localhost). To sign the body, set VIKA_WEBHOOK_SECRET in .env.
 webhook:
   url: https://hooks.example.com/vika
+
+# Optional AI opinions: `vika report --explain`. Off by default. Turning it on
+# only ALLOWS it: a person must pass --explain and approve each request after
+# seeing the exact text. When used, parts of code diffs leave this machine.
+# `vika run` and cron never use it. The key goes in .env as ANTHROPIC_API_KEY.
+explain:
+  enabled: false
+  provider: anthropic # the only provider for now
+  model: claude-sonnet-5-5
+  maxDiffLines: 200 # per suspect diff; 20 to 1000
 
 redact: # what to hide before anything is stored; default: all four
   - email

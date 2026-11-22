@@ -9,6 +9,7 @@ import type { StoreOptions } from "../database/store-types.js";
 import { checkConfiguration } from "../doctor/check-configuration.js";
 import { checkDatabase } from "../doctor/check-database.js";
 import { checkDeploys } from "../doctor/check-deploys.js";
+import { checkExplanation } from "../doctor/check-explanation.js";
 import { checkServiceLogs } from "../doctor/check-service-logs.js";
 import { checkServiceRepository } from "../doctor/check-service-repository.js";
 import { checkTracker } from "../doctor/check-tracker.js";
@@ -57,6 +58,8 @@ export async function runDoctorCommand(options: DoctorCommandOptions): Promise<D
         logs: serviceSettings.logs,
         configurationDirectory: dirname(configuration.configurationFilePath),
         pathMap: serviceSettings.pathMap,
+        language: serviceSettings.language,
+        logFormat: serviceSettings.logFormat,
         doesRepoFileExist: repositoryResult.isBranchReadable
           ? async (repoPath) => (await readFileAtCommit(serviceSettings.repo, serviceSettings.branch, repoPath)) !== undefined
           : undefined,
@@ -68,6 +71,7 @@ export async function runDoctorCommand(options: DoctorCommandOptions): Promise<D
 
   checks.push(...(await checkTracker(createTracker(configuration, options.fetchFunction, secrets), secrets)));
   checks.push(...checkWebhook(configuration.webhook));
+  checks.push(...checkExplanation(configuration.explain));
 
   // Belt and braces: no check message or fix ever shows a secret.
   const maskedChecks = checks.map((check) => ({

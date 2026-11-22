@@ -1,8 +1,8 @@
 import { LINE_START_READERS } from "./line-readers.js";
-import type { LogFormat } from "./log-entry-types.js";
+import { LOG_FORMATS, type LogFormat } from "./log-entry-types.js";
 
-export function recognizeFormat(sampleLines: string[]): { format: LogFormat; recognizedCount: number } {
-  const format = detectFormat(sampleLines);
+// How many lines one format can read (as an entry or as a line it drops).
+export function countRecognizedLines(sampleLines: string[], format: LogFormat): number {
   let recognizedCount = 0;
   for (const line of sampleLines) {
     try {
@@ -11,21 +11,19 @@ export function recognizeFormat(sampleLines: string[]): { format: LogFormat; rec
     } catch {
     }
   }
-  return { format, recognizedCount };
+  return recognizedCount;
+}
+
+export function recognizeFormat(sampleLines: string[]): { format: LogFormat; recognizedCount: number } {
+  const format = detectFormat(sampleLines);
+  return { format, recognizedCount: countRecognizedLines(sampleLines, format) };
 }
 
 export function detectFormat(sampleLines: string[]): LogFormat {
   let bestFormat: LogFormat = "text";
   let bestScore = 0;
-  for (const format of ["text", "json", "nginx"] as const) {
-    let score = 0;
-    for (const line of sampleLines) {
-      try {
-        const kind = LINE_START_READERS[format](line).kind;
-        if (kind === "entry" || kind === "drop") score++;
-      } catch {
-      }
-    }
+  for (const format of LOG_FORMATS) {
+    const score = countRecognizedLines(sampleLines, format);
     if (score > bestScore) {
       bestFormat = format;
       bestScore = score;

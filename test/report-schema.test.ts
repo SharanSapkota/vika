@@ -8,6 +8,7 @@ import { describe, expect, it } from "vitest";
 import type { z } from "zod";
 import {
   changeFailureRateSchema,
+  explanationSchema,
   medianTimeToRestoreSchema,
   reportDeploySchema,
   reportRegressionSchema,
@@ -33,6 +34,14 @@ describe("docs/report-schema.md", () => {
     expect(parseResult.data!.schemaVersion).toBe(1);
   });
 
+  it("the --explain regression example validates, and the explanation is optional", () => {
+    const example = readExample("explained-regression") as Record<string, unknown>;
+    expect(reportRegressionSchema.safeParse(example).error?.issues).toBeUndefined();
+    expect(reportRegressionSchema.safeParse({ ...example, explanation: null }).success).toBe(true);
+    const { explanation: _explanation, ...withoutExplanation } = example;
+    expect(reportRegressionSchema.safeParse(withoutExplanation).success).toBe(true);
+  });
+
   it("the webhook example validates against the payload schema, and holds no email", () => {
     const example = readExample("webhook");
     expect(webhookPayloadSchema.safeParse(example).error?.issues).toBeUndefined();
@@ -53,6 +62,7 @@ describe("docs/report-schema.md", () => {
     }
     for (const fieldName of Object.keys(changeFailureRateSchema.shape)) expect(DOCUMENT).toContain(`\`changeFailureRate.${fieldName}\``);
     for (const fieldName of Object.keys(medianTimeToRestoreSchema.shape)) expect(DOCUMENT).toContain(`\`medianTimeToRestore.${fieldName}\``);
+    for (const fieldName of Object.keys(explanationSchema.shape)) expect(DOCUMENT).toContain(`\`explanation.${fieldName}\``);
   });
 
   it("states the versioning rule", () => {

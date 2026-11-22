@@ -2,6 +2,7 @@
 import { readFileSync, rmSync } from "node:fs";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { buildClusters } from "../src/error-grouping/build-clusters.js";
+import { readExceptionType } from "../src/error-grouping/exception-type.js";
 import { normalize } from "../src/error-grouping/normalize-message.js";
 import { addMessage, emptyState, exportState, importState, type MinerState } from "../src/error-grouping/template-miner.js";
 import type { LogEntry } from "../src/log-parsing/log-entry-types.js";
@@ -219,5 +220,48 @@ describe("buildClusters and the redact setting", () => {
   it("but stores examples redacted with the configured kinds only", () => {
     expect(buildClusters(entries, "api").clusters[0]!.examples[0]).toBe("login failed for <email> from <ip>");
     expect(buildClusters(entries, "api", undefined, ["ip"]).clusters[0]!.examples[0]).toBe("login failed for jane@example.com from <ip>");
+  });
+});
+
+describe("Python errors", () => {
+  // One traceback, with the crash at `crashLine`. Moving unrelated lines
+  // above the crash changes only the line numbers.
+  const pythonLogLines = (crashLine: number, routeLine: number, at = "2026-11-21 20:01:02,345") => [
+    `${at} - server - ERROR - POST /api/orders failed`,
+    "Traceback (most recent call last):",
+    '  File "/usr/local/lib/python3.12/site-packages/starlette/routing.py", line 74, in app',
+    "    response = await f(request)",
+    `  File "/app/src/shop/api/routes.py", line ${routeLine}, in create_order_route`,
+    "    return orders.create_order(order)",
+    `  File "/app/src/shop/orders/service.py", line ${crashLine}, in create_order`,
+    "    email = user.email",
+    "app.errors.MissingUserError: 'NoneType' object has no attribute 'email'",
+  ];
+
+  it("readExceptionType reads dotted Python names", () => {
+    expect(readExceptionType("POST failed\napp.errors.PaymentError: card declined")).toBe("app.errors.PaymentError");
+    expect(readExceptionType("KeyError: 'amount'")).toBe("KeyError");
+  });
+
+  it("uses the exception name the traceback reader found, even when it does not end in Error", () => {
+    const entries = parseLines(
+      ["2026-11-21 20:01:02,345 - server - ERROR - payment step failed", "Traceback (most recent call last):", '  File "/app/pay.py", line 3, in pay', "    charge()", "app.errors.PaymentFailed: card declined"],
+      undefined,
+      undefined,
+      "python",
+    ).entries;
+    expect(buildClusters(entries, "shopfront").clusters[0]!.exceptionType).toBe("app.errors.PaymentFailed");
+  });
+
+  it("keeps the fingerprint when unrelated lines above the crash move", () => {
+    const before = parseLines(pythonLogLines(14, 13), undefined, undefined, "python").entries;
+    const after = parseLines(pythonLogLines(19, 21, "2026-11-21 21:00:00,000"), undefined, undefined, "python").entries;
+    const beforeCluster = buildClusters(before, "shopfront").clusters[0]!;
+    const afterCluster = buildClusters(after, "shopfront").clusters[0]!;
+    expect(afterCluster.fingerprint).toBe(beforeCluster.fingerprint);
+    expect(beforeCluster.exceptionType).toBe("app.errors.MissingUserError");
+    expect(beforeCluster.topFrames.map((frame) => frame.fn)).toEqual(["create_order", "create_order_route", "app"]);
+    // Both entries land in one group.
+    expect(buildClusters([...before, ...after], "shopfront").clusters).toHaveLength(1);
   });
 });

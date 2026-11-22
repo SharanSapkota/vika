@@ -47,6 +47,8 @@ async function runOneService(
     logs: serviceSettings.logs,
     configurationDirectory: dirname(configuration.configurationFilePath),
     redactionKinds: configuration.redact,
+    language: serviceSettings.language,
+    logFormat: serviceSettings.logFormat,
   });
   if (ingestResult.status === "busy") {
     return { serviceInput: makeSkippedService(serviceName, ingestResult.message), status: { serviceName, status: "busy", message: ingestResult.message } };

@@ -1,7 +1,9 @@
 // Builds a fake company with a KNOWN answer, for testing vika.
 //
 // In a temp folder OUTSIDE this project it writes:
-//   repo/          a small git repo (~10 commits) with one seeded bug
+//   repo/          a small git repo (~10 commits) with one seeded bug, in
+//                  TypeScript (direct, indirect) or Python (python-direct,
+//                  python-indirect; see python-fixture-app.ts)
 //   deploys.json   the deploy timeline: [{ sha, time, previousSha }]
 //   app.log        ~10 days of logs: normal traffic, a constant background
 //                  error, and one new error that starts after the bad deploy
@@ -10,23 +12,41 @@
 // Everything is deterministic: seeded random numbers, fixed dates, and git
 // isolated from the user's own config. Building twice gives identical output.
 //
-// Usage: npx tsx test/fixture/build.ts [direct|indirect] [branchName]
+// Usage: npx tsx test/fixture/build.ts [direct|indirect|python-direct|python-indirect] [branchName]
 import { execFileSync } from "node:child_process";
 import { mkdirSync, mkdtempSync, realpathSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join, relative, resolve, isAbsolute } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
+import {
+  Fake,
+  LOG_END,
+  LOG_START,
+  FIRST_ERROR_DELAY_MS,
+  BACKGROUND_ERROR,
+  MEI,
+  PRIYA,
+  TOMAS,
+  lines,
+  locate,
+  makeRandom,
+  type CommitPlan,
+  type Deploy,
+  type FixtureApp,
+  type FrameSpec,
+  type LogEvent,
+} from "./fixture-shared.js";
+import { PYTHON_SCENARIOS, buildPythonFixtureApp, type PythonScenario } from "./python-fixture-app.js";
 
-export type Scenario = "direct" | "indirect";
+export { BACKGROUND_ERROR, type Deploy } from "./fixture-shared.js";
 
-export interface Deploy {
-  sha: string;
-  time: string; // ISO timestamp
-  previousSha: string | null; // null for the very first deploy
-}
+export type JavascriptScenario = "direct" | "indirect";
+export type Scenario = JavascriptScenario | PythonScenario;
+export const SCENARIOS: readonly Scenario[] = ["direct", "indirect", ...PYTHON_SCENARIOS];
 
 export interface Expected {
   scenario: Scenario;
+  language: "javascript" | "python";
   productionBranch: string;
   badDeploySha: string;
   previousSha: string; // the deploy before the bad one
@@ -54,26 +74,10 @@ export interface Fixture {
 
 const PROJECT_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..");
 
-export const BACKGROUND_ERROR = "DB timeout after 5000ms";
-
-const NEW_ERROR: Record<Scenario, string> = {
+const NEW_ERROR: Record<JavascriptScenario, string> = {
   direct: "TypeError: Cannot read properties of undefined (reading 'amount')",
   indirect: "TypeError: Cannot read properties of null (reading 'email')",
 };
-
-const LOG_START = Date.parse("2026-03-01T00:00:00.000Z");
-const LOG_END = Date.parse("2026-03-11T00:00:00.000Z");
-
-const FIRST_ERROR_DELAY_MS = (4 * 60 + 7) * 1000 + 312;
-
-interface Author {
-  name: string;
-  email: string;
-}
-
-const PRIYA: Author = { name: "Priya Raman", email: "priya@example.com" };
-const TOMAS: Author = { name: "Tomas Ortega", email: "tomas@example.com" };
-const MEI: Author = { name: "Mei Chen", email: "mei@example.com" };
 
 interface AppState {
   orders: boolean; // src/orders/service.ts exists
@@ -88,18 +92,8 @@ interface AppState {
   version: string;
 }
 
-interface CommitPlan {
-  author: Author;
-  time: string;
-  message: string;
-  pr: number;
-  change: (s: AppState) => void;
-  deployAfter?: string; // deploy time, if a deploy happens right after this commit
-  bad?: boolean; // the seeded bug
-}
-
 // Commit 7 is the seeded bug. Its content depends on the scenario.
-function commitPlan(scenario: Scenario): CommitPlan[] {
+function commitPlan(scenario: JavascriptScenario): CommitPlan<AppState>[] {
   return [
     { author: PRIYA, time: "2026-03-01T09:12:00Z", pr: 801, message: "Initial project setup",
       change: () => {}, deployAfter: "2026-03-01T10:00:00Z" },
@@ -130,10 +124,6 @@ function commitPlan(scenario: Scenario): CommitPlan[] {
 // ---------------------------------------------------------------------------
 // The fake app's source files
 // ---------------------------------------------------------------------------
-
-function lines(...parts: string[]): string {
-  return parts.join("\n") + "\n";
-}
 
 function renderApp(s: AppState): Record<string, string> {
   const files: Record<string, string> = {
@@ -303,100 +293,15 @@ function assertOutsideProject(path: string): void {
 }
 
 // ---------------------------------------------------------------------------
-// Seeded random numbers and fake values
-// ---------------------------------------------------------------------------
-
-// mulberry32: small, fast, seeded PRNG. Same seed -> same sequence.
-function makeRandom(seed: number): () => number {
-  let a = seed >>> 0;
-  return () => {
-    a = (a + 0x6d2b79f5) >>> 0;
-    let t = a;
-    t = Math.imul(t ^ (t >>> 15), t | 1);
-    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-  };
-}
-
-class Fake {
-  constructor(private readonly rand: () => number) {}
-
-  int(min: number, max: number): number {
-    return min + Math.floor(this.rand() * (max - min + 1));
-  }
-
-  pick<T>(items: readonly T[]): T {
-    return items[this.int(0, items.length - 1)] as T;
-  }
-
-  hex(length: number): string {
-    let out = "";
-    for (let i = 0; i < length; i++) out += this.int(0, 15).toString(16);
-    return out;
-  }
-
-  uuid(): string {
-    const variant = this.pick(["8", "9", "a", "b"]);
-    return `${this.hex(8)}-${this.hex(4)}-4${this.hex(3)}-${variant}${this.hex(3)}-${this.hex(12)}`;
-  }
-
-  userId(): string {
-    return `u_${this.int(10000, 99999)}`;
-  }
-
-  orderId(): string {
-    return `ord_${this.hex(8)}`;
-  }
-
-  ip(): string {
-    return this.pick([
-      () => `10.${this.int(0, 255)}.${this.int(0, 255)}.${this.int(1, 254)}`,
-      () => `203.0.113.${this.int(1, 254)}`,
-      () => `198.51.100.${this.int(1, 254)}`,
-    ])();
-  }
-
-  email(): string {
-    const first = this.pick(["alex", "sam", "jordan", "taylor", "casey", "morgan", "riley", "jamie"]);
-    return `${first}.${this.int(1, 999)}@${this.pick(["example.com", "example.org", "example.net"])}`;
-  }
-}
-
-// ---------------------------------------------------------------------------
 // Log generation
 // ---------------------------------------------------------------------------
-
-interface LogEvent {
-  at: number; // epoch ms
-  text: string; // may span several lines (stack trace)
-}
 
 function logLine(at: number, level: string, component: string, message: string): string {
   return `${new Date(at).toISOString()} ${level.padEnd(5)} [${component}] ${message}`;
 }
 
-// One stack frame that points at a real line of the fake repo.
-interface FrameSpec {
-  fn: string;
-  file: string; // repo-relative path
-  lineText: string; // unique text on the target line
-  colText: string; // text the column should point at
-}
-
-// Finds the line and column of a frame in a file's content at the deployed sha.
-function locate(content: string, spec: FrameSpec): { line: number; col: number } {
-  const fileLines = content.split("\n");
-  const index = fileLines.findIndex((l) => l.includes(spec.lineText));
-  if (index === -1 || fileLines.findLastIndex((l) => l.includes(spec.lineText)) !== index) {
-    throw new Error(`fixture bug: "${spec.lineText}" must appear exactly once in ${spec.file}`);
-  }
-  const col = (fileLines[index] as string).indexOf(spec.colText);
-  if (col === -1) throw new Error(`fixture bug: "${spec.colText}" not on line ${index + 1} of ${spec.file}`);
-  return { line: index + 1, col: col + 1 };
-}
-
 // The app frames for each scenario, innermost first.
-function frameSpecs(scenario: Scenario): FrameSpec[] {
+function frameSpecs(scenario: JavascriptScenario): FrameSpec[] {
   const top: FrameSpec =
     scenario === "direct"
       ? { fn: "createOrder", file: "src/orders/service.ts", lineText: "order.discount.amount", colText: "amount;" }
@@ -408,9 +313,9 @@ function frameSpecs(scenario: Scenario): FrameSpec[] {
 }
 
 // Builds the stack trace text, with line numbers read from the repo at `sha`.
-function stackTrace(repoDir: string, sha: string, scenario: Scenario): string {
+function stackTrace(readFileAtSha: (sha: string, path: string) => string, sha: string, scenario: JavascriptScenario): string {
   const appFrames = frameSpecs(scenario).map((spec) => {
-    const { line, col } = locate(git(repoDir, ["show", `${sha}:${spec.file}`]), spec);
+    const { line, col } = locate(readFileAtSha(sha, spec.file), spec);
     return `    at ${spec.fn} (/app/${spec.file}:${line}:${col})`;
   });
   return [
@@ -476,9 +381,33 @@ function buildLog(fake: Fake, deploys: Deploy[], badDeploy: Deploy, trace: strin
 // Main entry point
 // ---------------------------------------------------------------------------
 
+// The TypeScript app. Its seeds (812, 813) and content never change, so the
+// JavaScript fixtures stay byte-identical.
+function buildJavascriptFixtureApp(scenario: JavascriptScenario): FixtureApp<AppState> {
+  return {
+    language: "javascript",
+    initialState: {
+      orders: false, handlers: false, validateEmail: false, readmeRunSection: false, ordersLogging: false,
+      discount: false, nullableGetUser: false, health: false, payments: false, version: "1.0.0",
+    },
+    commitPlans: commitPlan(scenario),
+    renderApp,
+    randomSeed: scenario === "direct" ? 812 : 813,
+    buildLog: (fake, deploys, badDeploy, readFileAtSha) => buildLog(fake, deploys, badDeploy, stackTrace(readFileAtSha, badDeploy.sha, scenario)),
+  };
+}
+
+const isPythonScenario = (scenario: Scenario): scenario is PythonScenario => (PYTHON_SCENARIOS as readonly string[]).includes(scenario);
+
 // Builds one scenario in a new temp folder and returns its paths and the answer.
 // The caller is responsible for deleting `root` when done.
 export function buildFixture(scenario: Scenario, options: FixtureOptions = {}): Fixture {
+  return isPythonScenario(scenario)
+    ? buildFixtureFromApp(scenario, buildPythonFixtureApp(scenario), options)
+    : buildFixtureFromApp(scenario, buildJavascriptFixtureApp(scenario), options);
+}
+
+function buildFixtureFromApp<State>(scenario: Scenario, app: FixtureApp<State>, options: FixtureOptions): Fixture {
   const branchName = options.branchName ?? "main";
   const root = mkdtempSync(join(tmpdir(), `vika-fixture-${scenario}-`));
   assertOutsideProject(root);
@@ -493,17 +422,14 @@ export function buildFixture(scenario: Scenario, options: FixtureOptions = {}): 
   }
 
   // Make the commits, recording deploys as we go.
-  const state: AppState = {
-    orders: false, handlers: false, validateEmail: false, readmeRunSection: false, ordersLogging: false,
-    discount: false, nullableGetUser: false, health: false, payments: false, version: "1.0.0",
-  };
+  const state: State = structuredClone(app.initialState);
   const deploys: Deploy[] = [];
-  let badCommit: { sha: string; plan: CommitPlan } | undefined;
+  let badCommit: { sha: string; plan: CommitPlan<State> } | undefined;
   let badDeploy: Deploy | undefined;
 
-  for (const plan of commitPlan(scenario)) {
+  for (const plan of app.commitPlans) {
     plan.change(state);
-    for (const [path, content] of Object.entries(renderApp(state))) {
+    for (const [path, content] of Object.entries(app.renderApp(state))) {
       mkdirSync(dirname(join(repoDir, path)), { recursive: true });
       writeFileSync(join(repoDir, path), content);
     }
@@ -534,12 +460,12 @@ export function buildFixture(scenario: Scenario, options: FixtureOptions = {}): 
   if (!badCommit || !badDeploy?.previousSha) throw new Error("fixture bug: no bad commit or bad deploy");
 
   // Logs, with the stack trace pointing at real lines at the bad deploy's sha.
-  const fake = new Fake(makeRandom(scenario === "direct" ? 812 : 813));
-  const trace = stackTrace(repoDir, badDeploy.sha, scenario);
-  const log = buildLog(fake, deploys, badDeploy, trace);
+  const fake = new Fake(makeRandom(app.randomSeed));
+  const log = app.buildLog(fake, deploys, badDeploy, (sha, path) => git(repoDir, ["show", `${sha}:${path}`]));
 
   const expected: Expected = {
     scenario,
+    language: app.language,
     productionBranch: branchName,
     badDeploySha: badDeploy.sha,
     previousSha: badDeploy.previousSha,
@@ -562,9 +488,9 @@ export function buildFixture(scenario: Scenario, options: FixtureOptions = {}): 
 
 // When run as a script, build the given scenario and print where it went.
 if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1])).href) {
-  const scenario = process.argv[2] ?? "direct";
-  if (scenario !== "direct" && scenario !== "indirect") {
-    console.error("usage: tsx test/fixture/build.ts [direct|indirect] [branchName]");
+  const scenario = SCENARIOS.find((candidate) => candidate === (process.argv[2] ?? "direct"));
+  if (scenario === undefined) {
+    console.error(`usage: tsx test/fixture/build.ts [${SCENARIOS.join("|")}] [branchName]`);
     process.exit(1);
   }
   const fixture = buildFixture(scenario, { branchName: process.argv[3] });

@@ -6,9 +6,10 @@
 import { runWithSecretsHidden } from "../configuration/hide-secrets.js";
 import { loadConfiguration, type LoadedConfiguration } from "../configuration/load-configuration.js";
 import { openStore } from "../database/database-store.js";
+import { findExplainBlocker } from "../explanation/check-explain-allowed.js";
 import type { StoreOptions } from "../database/store-types.js";
 import { runAllServices, type ServiceRunStatus } from "../pipeline/run-all-services.js";
-import { buildReport } from "../reporting/build-report.js";
+import { buildReport, type ServiceReportInput } from "../reporting/build-report.js";
 import type { Report } from "../reporting/report-types.js";
 import type { FetchFunction } from "../ticket-trackers/tracker-types.js";
 import { sendRegressionWebhooks } from "../webhook/send-regression-webhooks.js";
@@ -20,6 +21,9 @@ export interface ReportCommandOptions {
   storeOptions?: StoreOptions; // tests use their own Postgres schema
   // Set by `vika run` only: post new regressions to vika.yaml's webhook.
   webhookFetchFunction?: FetchFunction;
+  // `vika report --explain`: stop before any other work unless vika.yaml
+  // allows AI explanations and ANTHROPIC_API_KEY is set.
+  isExplainRequested?: boolean;
 }
 
 export interface ReportCommandResult {
@@ -31,6 +35,8 @@ export interface ReportCommandResult {
   runNotes: string[];
   webhookWarnings: string[]; // plain English; a webhook problem never fails the run
   webhookDeliveredCount: number;
+  // What the report was built from (stack frames per error group), for --explain.
+  serviceInputs: ServiceReportInput[];
 }
 
 export async function runReportCommand(options: ReportCommandOptions): Promise<ReportCommandResult> {
@@ -39,6 +45,11 @@ export async function runReportCommand(options: ReportCommandOptions): Promise<R
     ...(options.configurationPath === undefined ? {} : { configurationPath: options.configurationPath }),
     ...(options.environment === undefined ? {} : { environment: options.environment }),
   });
+
+  if (options.isExplainRequested) {
+    const explainBlocker = findExplainBlocker(configuration.explain);
+    if (explainBlocker !== null) throw new Error(explainBlocker);
+  }
 
   return runWithSecretsHidden(configuration, async () => {
     const store = await openStore(configuration.databaseUrl, options.storeOptions);
@@ -56,6 +67,7 @@ export async function runReportCommand(options: ReportCommandOptions): Promise<R
         runNotes: allServices.runNotes,
         webhookWarnings: webhookResult.warnings,
         webhookDeliveredCount: webhookResult.deliveredCount,
+        serviceInputs: allServices.serviceInputs,
       };
     } finally {
       await store.close();

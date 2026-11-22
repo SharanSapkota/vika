@@ -35,7 +35,7 @@ export function buildClusters(
 
   for (const entry of entries) {
     const normalizedMessage = normalize(redact(entry.message));
-    const exceptionName = readExceptionType(entry.message);
+    const exceptionName = entry.exceptionType ?? readExceptionType(entry.message);
     const hasStackTrace = entry.frames.length > 0;
     const fingerprint = hasStackTrace
       ? stackFingerprint(service, exceptionName, redactFramesFully(entry.frames))

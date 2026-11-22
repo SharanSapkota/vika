@@ -1,7 +1,8 @@
 import { open } from "node:fs/promises";
 import { isAbsolute, resolve } from "node:path";
-import type { LogsSetting } from "../configuration/configuration-schema.js";
-import { recognizeFormat } from "../log-parsing/detect-log-format.js";
+import { LOG_FORMAT_SETTINGS, type LogFormatSetting, type LogsSetting } from "../configuration/configuration-schema.js";
+import { countRecognizedLines, recognizeFormat } from "../log-parsing/detect-log-format.js";
+import { DEFAULT_LANGUAGE, LANGUAGES, type Language } from "../log-parsing/languages.js";
 import { parseLines } from "../log-parsing/parse-log-lines.js";
 import { readCommand } from "../log-parsing/read-log-command.js";
 import type { PathMap } from "../suspect-attribution/suspect-types.js";
@@ -20,7 +21,13 @@ export interface LogsCheckInput {
   pathMap: PathMap | undefined;
   doesRepoFileExist: ((repoPath: string) => Promise<boolean>) | undefined;
   commandTimeoutMs?: number;
+  language?: Language; // default "javascript"
+  logFormat?: LogFormatSetting; // default "auto"
 }
+
+const joinWithOr = (values: readonly string[]) => `${values.slice(0, -1).join(", ")} or ${values.at(-1)}`;
+const ALLOWED_VALUES_TEXT = `logFormat can be ${joinWithOr(LOG_FORMAT_SETTINGS)}; language can be ${joinWithOr(LANGUAGES)}`;
+export const LOG_FORMATS_README_FIX = 'see "Log formats and languages" in the README; most loggers can write one of these formats';
 
 async function readFileSample(filePath: string): Promise<{ firstLines: string[]; lastLines: string[] }> {
   const handle = await open(filePath, "r");
@@ -88,15 +95,24 @@ export async function checkServiceLogs(input: LogsCheckInput): Promise<DoctorChe
     checks.push(warnCheck(area, "the log is empty, so its format can't be checked yet", "run doctor again once the service has written some logs"));
     return checks;
   }
-  const { format, recognizedCount } = recognizeFormat(nonEmptyLines);
+  const language = input.language ?? DEFAULT_LANGUAGE;
+  // A logFormat other than "auto" is used as it is, without guessing.
+  const setFormat = input.logFormat === undefined || input.logFormat === "auto" ? undefined : input.logFormat;
+  const isFormatSet = setFormat !== undefined;
+  const { format, recognizedCount } =
+    setFormat === undefined ? recognizeFormat(nonEmptyLines) : { format: setFormat, recognizedCount: countRecognizedLines(nonEmptyLines, setFormat) };
   if (recognizedCount === 0) {
-    checks.push(failCheck(area, `none of the first ${nonEmptyLines.length} lines is in a format vika knows (text, json, nginx)`, "see the README for the supported formats; most loggers can write one of them"));
+    const problem = isFormatSet
+      ? `none of the first ${nonEmptyLines.length} lines is in the "${format}" format set by logFormat (${ALLOWED_VALUES_TEXT})`
+      : `none of the first ${nonEmptyLines.length} lines is in a format vika knows (text, json, nginx; ${ALLOWED_VALUES_TEXT})`;
+    checks.push(failCheck(area, problem, LOG_FORMATS_README_FIX));
     return checks;
   }
-  checks.push(passCheck(area, `format: ${format} (${recognizedCount} of the first ${nonEmptyLines.length} lines recognized)`));
+  const formatSource = isFormatSet ? "set by logFormat" : "guessed";
+  checks.push(passCheck(area, `format: ${format} (${formatSource}; ${recognizedCount} of the first ${nonEmptyLines.length} lines recognized), language: ${language}`));
 
   if (input.doesRepoFileExist !== undefined) {
-    const framePaths = parseLines(stackTraceLines, format).entries.flatMap((entry) => entry.frames.map((frame) => frame.file));
+    const framePaths = parseLines(stackTraceLines, format, undefined, language).entries.flatMap((entry) => entry.frames.map((frame) => frame.file));
     const advice = await adviseOnPathMap(framePaths, input.pathMap, input.doesRepoFileExist);
     if (advice.kind === "no stack traces") checks.push(passCheck(area, "no stack traces in the sampled lines, so there are no file paths to check yet"));
     if (advice.kind === "paths found") checks.push(passCheck(area, `stack-trace paths match files in the repo (${advice.checkedCount} checked)`));

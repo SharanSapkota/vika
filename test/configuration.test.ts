@@ -58,16 +58,44 @@ describe("vika.yaml", () => {
     const configuration = loadConfiguration({ workingDirectory: folder, environment: { DATABASE_URL: LOCAL_DATABASE_URL } });
     expect(configuration).toEqual({
       services: {
-        api: { repo: join(folder, "api-repo"), logs: "/var/log/api.log", branch: "main", deploys: { source: "merges" } },
+        api: {
+          repo: join(folder, "api-repo"),
+          logs: "/var/log/api.log",
+          branch: "main",
+          deploys: { source: "merges" },
+          language: "javascript",
+          logFormat: "auto",
+        },
       },
       tracker: { type: "none" },
       redact: ["email", "jwt", "ip", "cardlike"],
       databaseUrl: LOCAL_DATABASE_URL,
       trackerCredentials: { type: "none" },
       webhook: null,
+      explain: { isEnabled: false, provider: "anthropic", model: "claude-sonnet-5-5", maxDiffLines: 200, apiKey: null },
       configurationFilePath: join(folder, "vika.yaml"),
       warnings: [],
     });
+  });
+
+  it('language defaults to "javascript", accepts "python" and rejects anything else with the allowed values', () => {
+    expect(loadFromYaml(MINIMAL_YAML).services.api!.language).toBe("javascript");
+    expect(loadFromYaml(`${MINIMAL_YAML}    language: python\n`).services.api!.language).toBe("python");
+    expect(readYamlProblems(`${MINIMAL_YAML}    language: ruby\n`)).toEqual([
+      'services.api.language must be one of "javascript", "python" (got "ruby")',
+    ]);
+  });
+
+  it('logFormat defaults to "auto", accepts text/json/nginx and rejects anything else with the allowed values', () => {
+    expect(loadFromYaml(MINIMAL_YAML).services.api!.logFormat).toBe("auto");
+    for (const logFormat of ["text", "json", "nginx"]) {
+      expect(loadFromYaml(`${MINIMAL_YAML}    logFormat: ${logFormat}\n`).services.api!.logFormat).toBe(logFormat);
+    }
+    expect(readYamlProblems(`${MINIMAL_YAML}    logFormat: syslog\n`)).toEqual([
+      'services.api.logFormat must be one of "auto", "text", "json", "nginx" (got "syslog")',
+    ]);
+    // Unknown keys are still rejected.
+    expect(readYamlProblems(`${MINIMAL_YAML}    langauge: python\n`).join("\n")).toMatch(/langauge/);
   });
 
   it('reads a custom branch "production" and rejects an empty branch', () => {
@@ -136,7 +164,9 @@ describe("vika.yaml", () => {
     const exampleText = readFileSync(join(PROJECT_ROOT, "vika.example.yaml"), "utf8");
     const parseResult = vikaYamlSchema.safeParse(parseYaml(exampleText));
     expect(parseResult.error?.issues).toBeUndefined();
-    expect(Object.keys(parseResult.data!.services)).toEqual(["orders-api", "payments-worker", "storefront-web"]);
+    expect(Object.keys(parseResult.data!.services)).toEqual(["orders-api", "payments-worker", "storefront-web", "checkout-api"]);
+    expect(parseResult.data!.services["checkout-api"]).toMatchObject({ language: "python", logFormat: "text" });
+    expect(parseResult.data!.services["orders-api"]).toMatchObject({ language: "javascript", logFormat: "auto" });
   });
 
   it("rejects an empty redact list: redacting nothing is unsafe", () => {

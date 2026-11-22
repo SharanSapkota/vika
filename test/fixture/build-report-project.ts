@@ -59,6 +59,7 @@ export interface ReportProjectOptions {
   deploySource?: string; // default "marker"
   shouldMarkDeploys?: boolean; // default true: record deploys.json with mark-deploy
   extraServiceYamlLines?: string[]; // more services, indented under "services:"
+  explainYamlLines?: string[]; // e.g. ["explain:", "  enabled: true"]
 }
 
 export async function buildReportProject(scenario: Scenario, options: ReportProjectOptions = {}): Promise<ReportProject> {
@@ -76,10 +77,13 @@ export async function buildReportProject(scenario: Scenario, options: ReportProj
       `    repo: ${JSON.stringify(fixture.repoDir)}`,
       `    logs: ${JSON.stringify(options.logPath ?? fixture.logPath)}`,
       ...((options.isPathMapIncluded ?? true) ? ["    pathMap:", "      /app/src: src"] : []),
+      // The Python fixtures need their language; JavaScript is the default.
+      ...(fixture.expected.language === "python" ? ["    language: python"] : []),
       "    deploys:",
       `      source: ${options.deploySource ?? "marker"}`,
       ...(options.extraServiceYamlLines ?? []),
       ...(options.trackerYamlLines ?? []),
+      ...(options.explainYamlLines ?? []),
       "",
     ].join("\n"),
   );

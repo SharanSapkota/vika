@@ -1,17 +1,22 @@
 import { buildLogEntry, type EntryDraft } from "./build-log-entry.js";
+import { CONTINUATION_RULES } from "./continuation-rules.js";
+import { DEFAULT_LANGUAGE, type Language } from "./languages.js";
 import type { LineStart, LogEntry, ParseResult } from "./log-entry-types.js";
 import { ALL_REDACTION_KINDS, type RedactionKind } from "../redaction/redaction-kinds.js";
-
-const CONTINUATION_LINE = /^(?:\s|[\w$.]*(?:Error|Exception)(?::|$)|Caused by:)/;
 
 export function assembleLogEntries(
   lines: string[],
   readLineStart: (line: string) => LineStart,
   redactionKinds: readonly RedactionKind[] = ALL_REDACTION_KINDS,
+  language: Language = DEFAULT_LANGUAGE,
 ): ParseResult {
+  const isContinuationLine = CONTINUATION_RULES[language];
   const entries: LogEntry[] = [];
   let skipped = 0;
   let currentEntry: EntryDraft | "ignored" | null = null;
+  // Lines under an ignored entry (such as an INFO line) are swallowed, but
+  // they are still kept here so the continuation rule knows where it is.
+  let ignoredEntryLines: string[] = [];
 
   for (const rawLine of lines) {
     const line = rawLine.endsWith("\r") ? rawLine.slice(0, -1) : rawLine;
@@ -25,12 +30,13 @@ export function assembleLogEntries(
     }
 
     if (lineStart.kind === "none") {
-      if (currentEntry === null || !CONTINUATION_LINE.test(line)) skipped++;
-      else if (currentEntry !== "ignored") currentEntry.continuationLines.push(line);
+      const attachedLines = currentEntry === "ignored" ? ignoredEntryLines : currentEntry?.continuationLines;
+      if (attachedLines === undefined || !isContinuationLine(line, attachedLines)) skipped++;
+      else attachedLines.push(line);
       continue;
     }
 
-    if (currentEntry !== null && currentEntry !== "ignored") entries.push(buildLogEntry(currentEntry, redactionKinds));
+    if (currentEntry !== null && currentEntry !== "ignored") entries.push(buildLogEntry(currentEntry, redactionKinds, language));
     if (lineStart.kind === "entry") {
       currentEntry = {
         timestamp: lineStart.timestamp,
@@ -41,8 +47,9 @@ export function assembleLogEntries(
     } else {
       if (lineStart.kind === "bad") skipped++;
       currentEntry = "ignored";
+      ignoredEntryLines = [];
     }
   }
-  if (currentEntry !== null && currentEntry !== "ignored") entries.push(buildLogEntry(currentEntry, redactionKinds));
+  if (currentEntry !== null && currentEntry !== "ignored") entries.push(buildLogEntry(currentEntry, redactionKinds, language));
   return { entries, skipped };
 }

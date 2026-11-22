@@ -2,6 +2,7 @@ import { ALL_REDACTION_KINDS, type RedactionKind } from "../redaction/redaction-
 import { assembleLogEntries } from "./assemble-log-entries.js";
 import { normalizeLevel } from "./log-levels.js";
 import type { Level, LineStart, ParseResult } from "./log-entry-types.js";
+import { DEFAULT_LANGUAGE, type Language } from "./languages.js";
 import { epochToIso, toIso } from "./timestamps.js";
 
 type JsonObject = Record<string, unknown>;
@@ -48,6 +49,10 @@ export function readJsonStart(line: string): LineStart {
     : { kind: "entry", timestamp, level, message, stack };
 }
 
-export function parseJson(lines: string[], redactionKinds: readonly RedactionKind[] = ALL_REDACTION_KINDS): ParseResult {
-  return assembleLogEntries(lines, readJsonStart, redactionKinds);
+export function parseJson(
+  lines: string[],
+  redactionKinds: readonly RedactionKind[] = ALL_REDACTION_KINDS,
+  language: Language = DEFAULT_LANGUAGE,
+): ParseResult {
+  return assembleLogEntries(lines, readJsonStart, redactionKinds, language);
 }

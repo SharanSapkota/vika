@@ -6,7 +6,7 @@ import { afterAll, describe, expect, it } from "vitest";
 import { reportSchema } from "../src/reporting/report-schema.js";
 import type { Report } from "../src/reporting/report-types.js";
 import type { Scenario } from "./fixture/build.js";
-import { BACKGROUND_ERROR } from "./fixture/build.js";
+import { BACKGROUND_ERROR, git } from "./fixture/build.js";
 import { buildReportProject, FIXTURE_SERVICE_NAME, type ReportProject } from "./fixture/build-report-project.js";
 import { createFakeJira } from "./fixture/fake-trackers.js";
 
@@ -116,6 +116,77 @@ describe.each<Scenario>(["direct", "indirect"])("vika report on the %s fixture",
       expect(metrics.medianTimeToRestore.label).toBe("log-derived");
       expect(metrics.medianTimeToRestore).toHaveProperty("valueMinutes");
       expect(metrics.ongoingRegressions.label).toBe("log-derived");
+    }
+  }, 60_000);
+});
+
+describe.each<Scenario>(["python-direct", "python-indirect"])("vika report on the %s fixture (Python)", (scenario) => {
+  const projects: ReportProject[] = [];
+  afterAll(() => projects.forEach((project) => project.remove()));
+
+  // Everything that would show a write to the repo.
+  const snapshotRepoState = (repoPath: string) =>
+    [
+      git(repoPath, ["rev-parse", "HEAD"]),
+      git(repoPath, ["for-each-ref", "--format=%(refname) %(objectname)"]),
+      git(repoPath, ["status", "--porcelain", "--untracked-files=all"]),
+    ].join("\n---\n");
+
+  it("reads gunicorn and logger lines plus tracebacks, and names the seeded commit; read-only; no secrets", async () => {
+    const project = await buildReportProject(scenario, {
+      trackerYamlLines: ["tracker:", "  type: jira", "  project: OPS"],
+      extraEnvironment: { JIRA_BASE_URL: "https://example.atlassian.net", JIRA_EMAIL: "ops@example.com", JIRA_API_TOKEN: JIRA_TOKEN },
+    });
+    projects.push(project);
+    const { expected } = project.fixture;
+    expect(expected.language).toBe("python");
+    const repoStateBefore = snapshotRepoState(project.fixture.repoDir);
+
+    const jsonRun = await project.runVika(["report", "--json"]);
+    expect(jsonRun.errorOutput).not.toMatch(/^vika: /m);
+    expect(jsonRun.exitCode).toBe(0);
+    const report = JSON.parse(jsonRun.output) as Report;
+    expect(reportSchema.safeParse(report).error?.issues).toBeUndefined();
+
+    const service = report.services.find((candidate) => candidate.serviceName === FIXTURE_SERVICE_NAME)!;
+    expect(service.regressions).toHaveLength(1);
+    const regression = service.regressions[0]!;
+    expect(regression.deploySha).toBe(expected.badDeploySha);
+    expect(regression.kind).toBe("new");
+    expect(regression.firstSeen).toBe(expected.errorFirstSeen);
+    expect(service.regressions.some((candidate) => candidate.headline.includes(BACKGROUND_ERROR))).toBe(false);
+    // The repeating Python warning never becomes an error group.
+    expect(JSON.stringify(report)).not.toContain("InsecureKeyLengthWarning");
+
+    const topSuspect = regression.suspects[0]!;
+    expect(topSuspect).toMatchObject({
+      commitSha: expected.suspectSha,
+      prNumber: expected.suspectPr,
+      confidence: "high",
+      evidenceKind: scenario === "python-direct" ? "blamed-line-changed" : "call-chain-function-changed",
+      author: { name: expected.suspectAuthor, email: expected.suspectEmail },
+    });
+    const expectedLocation =
+      scenario === "python-direct"
+        ? { filePath: "src/shop/orders/service.py", lineText: /order\["discount"\]\["amount"\]/ }
+        : { filePath: "src/shop/users/repo.py", lineText: /^def get_user\(user_id: str\) -> User \| None:$/ };
+    expect(topSuspect.filePath).toBe(expectedLocation.filePath);
+    expect(topSuspect.lineText).toMatch(expectedLocation.lineText);
+    expect(service.metrics.changeFailureRate).toMatchObject({ label: "log-derived", value: 0.25, failedDeploys: 1, judgedDeploys: 4 });
+
+    const terminalRun = await project.runVika(["report"]);
+    expect(terminalRun.exitCode).toBe(0);
+    expect(terminalRun.output).toContain(`PR #${expected.suspectPr}`);
+    expect(terminalRun.output).toContain(scenario === "python-direct" ? "KeyError: 'discount'" : "AttributeError: 'NoneType' object has no attribute 'email'");
+
+    // Read-only: the customer's repo is exactly as it was.
+    expect(snapshotRepoState(project.fixture.repoDir)).toBe(repoStateBefore);
+
+    // Secrets: neither the database password nor the tracker token is printed.
+    const databasePassword = new URL(project.environment.DATABASE_URL!).password;
+    for (const text of [jsonRun.output, jsonRun.errorOutput, terminalRun.output, terminalRun.errorOutput]) {
+      expect(text).not.toContain(JIRA_TOKEN);
+      if (databasePassword !== "") expect(text).not.toContain(databasePassword);
     }
   }, 60_000);
 });

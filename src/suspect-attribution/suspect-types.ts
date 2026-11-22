@@ -1,4 +1,5 @@
 import type { RangeCommit } from "../deploys/commits-in-range.js";
+import type { Language } from "../log-parsing/languages.js";
 import type { Frame } from "../log-parsing/log-entry-types.js";
 
 export type Confidence = "high" | "medium" | "low";
@@ -33,6 +34,7 @@ export interface AttributionInput {
   previousSha: string | null;
   topFrames: Frame[];
   pathMap?: PathMap;
+  language?: Language; // default "javascript"
   commitsInRange: RangeCommit[];
 }
 

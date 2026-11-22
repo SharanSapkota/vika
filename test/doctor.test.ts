@@ -7,11 +7,13 @@ import { join } from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { runMarkDeployCommand } from "../src/commands/mark-deploy-command.js";
 import { runCli } from "../src/commands/run-cli.js";
+import { checkServiceLogs, LOG_FORMATS_README_FIX } from "../src/doctor/check-service-logs.js";
 import { adviseOnPathMap } from "../src/doctor/suggest-path-map.js";
 import { buildFixture, git, type Fixture } from "./fixture/build.js";
 import { buildReportProject, makeTestSchemaName, readTestDatabaseUrl, type ReportProject, type ReportProjectOptions } from "./fixture/build-report-project.js";
 import { buildSmallRepo, type SmallRepo } from "./fixture/build-small-repo.js";
 import { createFakeJira, createFakeLinear, createForbiddenFetch } from "./fixture/fake-trackers.js";
+import { REAL_PYTHON_LOG_SAMPLES } from "./fixture/python-log-samples.js";
 
 const JIRA_TOKEN = "jira-token-Doc7Tr4Wq9";
 const LINEAR_KEY = "lin_api_Doc3Xy8Zk1";
@@ -65,6 +67,7 @@ describe("vika doctor", () => {
     expect(linesAt(result.output, "WARN")).toEqual([]);
     expect(result.output).toContain("OK   database: all 5 migrations applied");
     expect(result.output).toContain("OK   service shopfront: logs: stack-trace paths match files in the repo");
+    expect(result.output).toMatch(/OK {3}service shopfront: logs: format: text \(guessed; \d+ of the first 200 lines recognized\), language: javascript/);
     expect(result.output).toContain("OK   service shopfront: deploys: 5 deploys recorded with mark-deploy");
     expect(result.output).toContain("OK   tracker: Jira accepts the credentials (logged in as vika bot)");
     expect(result.output).toContain("All set.");
@@ -213,9 +216,64 @@ describe("vika doctor", () => {
     const result = await runDoctor(project);
     expect(result.output).toContain(`FAIL service missing-file: logs: ${join(folder, "nope.log")} does not exist`);
     expect(result.output).toContain("FAIL service failing-command: logs: the log command exited with code 3");
-    expect(result.output).toContain("FAIL service unknown-format: logs: none of the first 2 lines is in a format vika knows (text, json, nginx)");
+    expect(result.output).toContain(
+      "FAIL service unknown-format: logs: none of the first 2 lines is in a format vika knows (text, json, nginx; logFormat can be auto, text, json or nginx; language can be javascript or python)",
+    );
+    expect(result.output).toContain(`fix: ${LOG_FORMATS_README_FIX}`);
     expect(result.output).toContain("OK   service working-command: logs: the log command ran and printed 40 lines");
   }, 60_000);
+
+  it("logs: a Python service shows its language and format; tracebacks match the repo; library frames are ignored", async () => {
+    const pythonFixture = buildFixture("python-indirect");
+    try {
+      const project = await buildReportProject("python-indirect", { fixture: pythonFixture, trackerYamlLines: JIRA_YAML, extraEnvironment: JIRA_ENVIRONMENT });
+      projects.push(project);
+      const result = await runDoctor(project);
+      expect(linesAt(result.output, "FAIL")).toEqual([]);
+      expect(linesAt(result.output, "WARN")).toEqual([]);
+      expect(result.output).toMatch(/OK {3}service shopfront: logs: format: text \(guessed; \d+ of the first 200 lines recognized\), language: python/);
+      expect(result.output).toContain("OK   service shopfront: logs: stack-trace paths match files in the repo");
+    } finally {
+      rmSync(pythonFixture.root, { recursive: true, force: true });
+    }
+  }, 60_000);
+
+  it("logs: a logFormat that does not match the log FAILs and names the allowed values", async () => {
+    const project = await startProject({ extraServiceYamlLines: ["  set-format:", `    repo: ${JSON.stringify(fixture.repoDir)}`, `    logs: ${JSON.stringify(fixture.logPath)}`, "    logFormat: json"] });
+    const result = await runDoctor(project);
+    expect(result.output).toContain(
+      'FAIL service set-format: logs: none of the first 200 lines is in the "json" format set by logFormat (logFormat can be auto, text, json or nginx; language can be javascript or python)',
+    );
+  }, 60_000);
+
+  it("logs: the real Python samples are recognized as the text format", async () => {
+    const folder = makeFolder();
+    const logPath = join(folder, "python.log");
+    writeFileSync(logPath, REAL_PYTHON_LOG_SAMPLES.join("\n") + "\n");
+    const checks = await checkServiceLogs({ serviceName: "api", logs: logPath, configurationDirectory: folder, pathMap: undefined, doesRepoFileExist: undefined, language: "python" });
+    expect(checks.map((check) => `${check.level} ${check.message}`)).toEqual([
+      `OK ${logPath} is readable`,
+      "OK format: text (guessed; 5 of the first 7 lines recognized), language: python",
+    ]);
+    const setFormatChecks = await checkServiceLogs({ serviceName: "api", logs: logPath, configurationDirectory: folder, pathMap: undefined, doesRepoFileExist: undefined, language: "python", logFormat: "text" });
+    expect(setFormatChecks[1]!.message).toBe("format: text (set by logFormat; 5 of the first 7 lines recognized), language: python");
+  });
+
+  it("adviseOnPathMap ignores Python site-packages, dist-packages and standard-library frames", async () => {
+    const exists = async (repoPath: string) => repoPath === "src/shop/orders/service.py";
+    expect(
+      await adviseOnPathMap(
+        ["/usr/local/lib/python3.12/site-packages/fastapi/routing.py", "/usr/lib/python3/dist-packages/requests/api.py", "/usr/local/lib/python3.12/asyncio/tasks.py"],
+        undefined,
+        exists,
+      ),
+    ).toEqual({ kind: "no stack traces" });
+    expect(await adviseOnPathMap(["/usr/local/lib/python3.12/site-packages/fastapi/routing.py", "/app/src/shop/orders/service.py"], undefined, exists)).toMatchObject({
+      kind: "suggestion",
+      serverPrefix: "/app/src",
+      repoPrefix: "src",
+    });
+  });
 
   it("logs: WARN with the exact pathMap to add when stack-trace paths aren't in the repo", async () => {
     const project = await startProject({ isPathMapIncluded: false });

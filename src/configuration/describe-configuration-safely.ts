@@ -3,8 +3,9 @@ import type { LoadedConfiguration } from "./load-configuration.js";
 
 const HIDDEN = "(set, hidden)";
 
-export type SafeConfigurationDescription = Omit<LoadedConfiguration, "trackerCredentials"> & {
+export type SafeConfigurationDescription = Omit<LoadedConfiguration, "trackerCredentials" | "explain"> & {
   trackerCredentials: Record<string, string>;
+  explain: Omit<LoadedConfiguration["explain"], "apiKey"> & { apiKey: string | null };
 };
 
 export function describeConfigurationSafely(configuration: LoadedConfiguration): SafeConfigurationDescription {
@@ -24,5 +25,6 @@ export function describeConfigurationSafely(configuration: LoadedConfiguration):
       configuration.webhook === null
         ? null
         : { url: `${new URL(configuration.webhook.url).origin}/(path hidden)`, secret: configuration.webhook.secret === null ? null : HIDDEN },
+    explain: { ...configuration.explain, apiKey: configuration.explain.apiKey === null ? null : HIDDEN },
   };
 }

@@ -30,6 +30,9 @@ export function collectSecrets(configuration: LoadedConfiguration): string[] {
     secrets.push(configuration.webhook.url);
     if (configuration.webhook.secret !== null) secrets.push(configuration.webhook.secret);
   }
+  // Some scripts and tests pass a partial configuration without `explain`.
+  const explainApiKey = configuration.explain?.apiKey ?? null;
+  if (explainApiKey !== null) secrets.push(explainApiKey);
   return [...new Set(secrets.filter((secret) => secret !== ""))].sort((left, right) => right.length - left.length);
 }
 

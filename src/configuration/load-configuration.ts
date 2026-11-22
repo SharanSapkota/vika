@@ -3,7 +3,7 @@ import { existsSync, readFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { parse as parseYaml } from "yaml";
 import { ConfigurationError, describeSchemaIssues } from "./configuration-errors.js";
-import { vikaYamlSchema, type RedactionKind, type ServiceSettings, type TrackerSettings } from "./configuration-schema.js";
+import { vikaYamlSchema, type ExplainProvider, type RedactionKind, type ServiceSettings, type TrackerSettings } from "./configuration-schema.js";
 import { findDatabaseUrlWarnings, parseDatabaseUrl } from "./database-url-checks.js";
 import { mergeEnvironment, readEnvironmentFile } from "./read-environment-file.js";
 
@@ -15,6 +15,18 @@ export type TrackerCredentials =
   | { type: "linear"; apiKey: string }
   | { type: "none" };
 
+// The optional AI step. isEnabled only ALLOWS `vika report --explain`; a
+// person must still pass the flag and approve each request.
+export interface ExplainConfiguration {
+  isEnabled: boolean;
+  provider: ExplainProvider;
+  model: string;
+  maxDiffLines: number;
+  // From ANTHROPIC_API_KEY, read only when isEnabled is true. null when it is
+  // off or the variable is missing (doctor FAILs on that; --explain stops).
+  apiKey: string | null;
+}
+
 export interface LoadedConfiguration {
   services: Record<string, ServiceSettings>; // repo paths are absolute
   tracker: TrackerSettings;
@@ -24,6 +36,7 @@ export interface LoadedConfiguration {
   // Where `vika run` posts new regressions; null when vika.yaml has no webhook.
   // The signing secret comes from VIKA_WEBHOOK_SECRET (optional).
   webhook: { url: string; secret: string | null } | null;
+  explain: ExplainConfiguration;
   configurationFilePath: string;
   warnings: string[]; // advice that doesn't stop vika from running
 }
@@ -123,6 +136,14 @@ export function loadConfiguration(options: LoadConfigurationOptions): LoadedConf
     databaseUrl,
     trackerCredentials,
     webhook: vikaYaml.webhook === undefined ? null : { url: vikaYaml.webhook.url, secret: readVariable("VIKA_WEBHOOK_SECRET") ?? null },
+    explain: {
+      isEnabled: vikaYaml.explain.enabled,
+      provider: vikaYaml.explain.provider,
+      model: vikaYaml.explain.model,
+      maxDiffLines: vikaYaml.explain.maxDiffLines,
+      // With explanations off, the key is never even read.
+      apiKey: vikaYaml.explain.enabled ? (readVariable("ANTHROPIC_API_KEY") ?? null) : null,
+    },
     configurationFilePath,
     warnings: findDatabaseUrlWarnings(parsedDatabaseUrl),
   };
