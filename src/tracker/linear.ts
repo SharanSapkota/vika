@@ -1,1 +1,0 @@
-// Linear issue tracker integration.
