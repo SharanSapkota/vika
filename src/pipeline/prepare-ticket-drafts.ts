@@ -1,7 +1,3 @@
-// One ticket draft per bad deploy in a report. Reads the stored clusters
-// (for redacted examples and log sources) and the repo's CODEOWNERS at the
-// deployed sha (read-only git). Deploys with no medium or high regression
-// give no draft.
 import type { LoadedConfiguration } from "../configuration/load-configuration.js";
 import type { Store } from "../database/store-types.js";
 import type { Report } from "../reporting/report-types.js";
@@ -18,7 +14,6 @@ export async function prepareTicketDrafts(store: Store, configuration: LoadedCon
     if (serviceReport.isSkipped || serviceSettings === undefined || serviceReport.regressions.length === 0) continue;
     const clusters = await store.listClusters(serviceReport.serviceName);
 
-    // The deploys with regressions, in report order.
     const deployShas = [...new Set(serviceReport.regressions.map((regression) => regression.deploySha))];
     for (const deploySha of deployShas) {
       const regressions = serviceReport.regressions.filter((regression) => regression.deploySha === deploySha);

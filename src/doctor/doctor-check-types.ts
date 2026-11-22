@@ -1,9 +1,7 @@
-// One line of `vika doctor` output: what was checked, how it went, and
-// (for WARN and FAIL) what to do about it, in plain English.
 export type CheckLevel = "OK" | "WARN" | "FAIL";
 
 export interface DoctorCheck {
-  area: string; // "configuration", "database", "service shopfront: logs", "tracker", ...
+  area: string;
   level: CheckLevel;
   message: string;
   fix: string | null;

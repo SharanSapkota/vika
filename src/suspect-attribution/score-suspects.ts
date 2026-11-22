@@ -1,18 +1,3 @@
-// Turns findings into ranked suspects. Pure: plain data in, plain data out.
-//
-// Ranking, strongest first:
-//   1. the line that threw was changed                         high
-//   2. a line feeding the failing line was changed             high
-//   3. a function whose result the failing line reads changed  high
-//   4. the function that threw was changed elsewhere           medium
-//   5. a function lower in the stack trace was changed         medium
-//   6. a file in the stack trace was changed                   medium
-//   7. a lockfile, config file or migration was changed        medium
-//   8. shipped in the deploy, nothing else                     low
-// 2 and 3 sit above 4 because a change to where a failing value comes from
-// explains the error better than an unrelated edit elsewhere in the same
-// function (the "indirect" bug: getUser() starts returning null, and the
-// error shows up in its caller).
 import type { RangeCommit } from "../deploys/commits-in-range.js";
 import { extractPrNumber } from "../deploys/pull-request-number.js";
 import { isBotAuthor } from "./bot-authors.js";
@@ -22,7 +7,7 @@ export const MAX_SUSPECTS = 3;
 export const NO_STRONG_SUSPECT_MESSAGE = "no strong suspect in this deploy; may be external";
 
 interface StrengthDetails {
-  rank: number; // higher = stronger
+  rank: number;
   confidence: Confidence;
   evidenceKind: EvidenceKind;
 }
@@ -41,10 +26,9 @@ const TIMING_ONLY_DETAILS: StrengthDetails = { rank: 0, confidence: "low", evide
 export interface ScoreInput {
   findings: Finding[];
   commitsInRange: RangeCommit[];
-  changedFilesByCommit: Map<string, string[]>; // for timing-only suspects' file
+  changedFilesByCommit: Map<string, string[]>;
 }
 
-// "createOrder()" when the function is known, otherwise "the code".
 const describeFunction = (functionName: string | null) => (functionName === null ? "the code" : `${functionName}()`);
 
 function writeReason(finding: Finding): string {
@@ -83,19 +67,13 @@ function buildSuspect(commit: RangeCommit, details: StrengthDetails, fields: Pic
   };
 }
 
-// Plain string order (not locale-aware), so output never depends on the machine.
 const compareStrings = (left: string, right: string) => (left < right ? -1 : left > right ? 1 : 0);
 
 export function scoreSuspects(input: ScoreInput): AttributionResult {
   const rangePositionBySha = new Map(input.commitsInRange.map((commit, rangePosition) => [commit.sha, rangePosition]));
 
-  // Only commits the deploy shipped can be suspects: a blame that points
-  // before the range never counts.
   const findingsInRange = input.findings.filter((finding) => rangePositionBySha.has(finding.commitSha));
 
-  // Strongest first. Ties: closer to the top of the stack, then the order
-  // the deploy shipped the commits in, then file and line, so the result
-  // never depends on the order findings were collected in.
   findingsInRange.sort(
     (left, right) =>
       STRENGTH_DETAILS[right.strength].rank - STRENGTH_DETAILS[left.strength].rank ||
@@ -105,8 +83,6 @@ export function scoreSuspects(input: ScoreInput): AttributionResult {
       (left.lineNumber ?? Infinity) - (right.lineNumber ?? Infinity),
   );
 
-  // One suspect per commit, from its strongest finding. The findings are
-  // sorted, so the suspects come out strongest first.
   const rankedSuspects: Suspect[] = [];
   const suspectedShas = new Set<string>();
   for (const finding of findingsInRange) {
@@ -123,8 +99,6 @@ export function scoreSuspects(input: ScoreInput): AttributionResult {
     );
   }
 
-  // Every other commit in the deploy is a timing-only suspect, after all the
-  // others, in the order the deploy shipped them.
   for (const commit of input.commitsInRange) {
     if (suspectedShas.has(commit.sha)) continue;
     const firstChangedFile = [...(input.changedFilesByCommit.get(commit.sha) ?? [])].sort(compareStrings)[0] ?? "";

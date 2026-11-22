@@ -1,6 +1,3 @@
-// The report object: what `vika report` prints as text, and as-is with --json.
-// The types come from the zod schemas in report-schema.ts (the documented
-// contract), so they can't drift apart. See docs/report-schema.md.
 import type { z } from "zod";
 import type {
   changeFailureRateSchema,

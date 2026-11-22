@@ -1,7 +1,3 @@
-// When stack-trace paths (e.g. /app/src/orders/service.ts) don't exist in the
-// repo, find the server prefix to map away: drop leading folders until the
-// rest exists in the repo (src/orders/service.ts), and suggest that mapping.
-// Pure, apart from the injected "does this file exist in the repo" check.
 import { applyPathMap, isRepoRelativePath } from "../suspect-attribution/apply-path-map.js";
 import type { PathMap } from "../suspect-attribution/suspect-types.js";
 
@@ -16,7 +12,6 @@ export async function adviseOnPathMap(
   pathMap: PathMap | undefined,
   doesRepoFileExist: (repoPath: string) => Promise<boolean>,
 ): Promise<PathMapAdvice> {
-  // Library frames (node_modules, node:internal) are never in the repo.
   const appFramePaths = [...new Set(framePaths)].filter((framePath) => !framePath.includes("node_modules/") && !/^[A-Za-z]+:/.test(framePath));
   if (appFramePaths.length === 0) return { kind: "no stack traces" };
 
@@ -32,8 +27,6 @@ export async function adviseOnPathMap(
     for (let droppedCount = 1; droppedCount < pathParts.length; droppedCount++) {
       const repoPath = pathParts.slice(droppedCount).join("/");
       if (repoPath === "" || !isRepoRelativePath(repoPath) || !(await doesRepoFileExist(repoPath))) continue;
-      // Keep the repo path's first folder in the mapping when it has one:
-      // "/app/src: src" reads better than "/app: ''" and means the same.
       const hasFolder = droppedCount < pathParts.length - 1;
       const keptCount = hasFolder ? droppedCount + 1 : droppedCount;
       const serverPrefix = pathParts.slice(0, keptCount).join("/");

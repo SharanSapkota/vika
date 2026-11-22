@@ -1,13 +1,11 @@
-// Runs the log command from vika.yaml (docker logs, kubectl logs, ssh ...)
-// and keeps only lines newer than the last run's timestamp bookmark.
 import { spawn } from "node:child_process";
 import { lineTimestamp } from "./read-line-timestamp.js";
 
 export interface CommandReadResult {
   lines: string[];
-  next: { sinceTimestamp?: string }; // newest timestamp seen, for the next run
-  timedOut: boolean; // true if we had to stop the command
-  exitCode: number | null; // null if it was stopped
+  next: { sinceTimestamp?: string };
+  timedOut: boolean;
+  exitCode: number | null;
 }
 
 export function readCommand(command: string, sinceTimestamp: string | undefined, timeoutMs: number): Promise<CommandReadResult> {
@@ -21,8 +19,6 @@ export function readCommand(command: string, sinceTimestamp: string | undefined,
     let newestTimestamp = sinceTimestamp;
     let timedOut = false;
 
-    // Lines without a timestamp (stack traces) follow the decision for the
-    // timestamped line before them on the same stream.
     const streams = {
       stdout: { partial: "", keep: sinceMs === undefined },
       stderr: { partial: "", keep: sinceMs === undefined },
@@ -43,7 +39,7 @@ export function readCommand(command: string, sinceTimestamp: string | undefined,
     for (const streamName of ["stdout", "stderr"] as const) {
       const streamState = streams[streamName];
       const stream = child[streamName];
-      stream.setEncoding("utf8"); // handles UTF-8 characters split across chunks
+      stream.setEncoding("utf8");
       stream.on("data", (chunk: string) => {
         const parts = (streamState.partial + chunk).split("\n");
         streamState.partial = parts.pop() ?? "";
@@ -54,7 +50,7 @@ export function readCommand(command: string, sinceTimestamp: string | undefined,
     const timer = setTimeout(() => {
       timedOut = true;
       try {
-        process.kill(-(child.pid as number), "SIGKILL"); // the whole process group
+        process.kill(-(child.pid as number), "SIGKILL");
       } catch {
         child.kill("SIGKILL");
       }

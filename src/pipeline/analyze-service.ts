@@ -1,10 +1,3 @@
-// For one service, from what's stored: run the detector over all its
-// clusters and deploys, then name suspects for each regression (git,
-// read-only). Returns the input build-report needs.
-//
-// historyStart comes from the bookmarks (the first log line ever read) and
-// dataEnd from the newest log line read, so no clock is involved: the same
-// stored data always gives the same answer.
 import type { ServiceSettings } from "../configuration/configuration-schema.js";
 import type { Deploy, Store } from "../database/store-types.js";
 import { listCommitsInRange } from "../deploys/commits-in-range.js";

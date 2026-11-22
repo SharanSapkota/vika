@@ -1,14 +1,3 @@
-// Names the suspect commits for one regression: reads the repo at the
-// deployed sha (read-only), collects findings against the commits the
-// deploy shipped, and lets the pure scorer rank them. Deterministic: no
-// LLM, no database, no tickets.
-//
-// What it looks at, for the stack frames that point into the repo:
-//   top frame:     blame its line; blame the lines that feed it; check the
-//                  functions whose return values it reads; check its function
-//   other frames:  check their functions (further down the call chain)
-//   every frame:   was its file changed in the deploy at all?
-//   the whole deploy: lockfiles, config files and migrations it changed
 import { assertSafeRevision } from "../deploys/run-git.js";
 import { applyPathMap, isRepoRelativePath } from "./apply-path-map.js";
 import { findCalleeLocation } from "./callee-files.js";
@@ -29,11 +18,8 @@ import type { AttributionInput, AttributionResult, Finding } from "./suspect-typ
 
 export const FIRST_DEPLOY_MESSAGE = "first deploy, nothing to compare";
 
-// When git can't find a frame's function by name, look at this many lines
-// above and below the frame's line instead.
 const FALLBACK_CONTEXT_LINES = 3;
 
-// A stack frame that points at a file that exists in the repo at the deployed sha.
 interface RepoFrame {
   frameIndex: number;
   filePath: string;
@@ -56,13 +42,10 @@ function hasLine(frame: RepoFrame, lineNumber: number): boolean {
   return Number.isInteger(lineNumber) && lineNumber >= 1 && lineNumber <= frame.lineCount;
 }
 
-// A finding with the fields most findings leave empty already filled in.
 function makeFinding(fields: Pick<Finding, "commitSha" | "strength" | "frameIndex" | "filePath"> & Partial<Finding>): Finding {
   return { lineNumber: null, lineText: null, functionName: null, calleeName: null, fileCategory: null, ...fields };
 }
 
-// The frames whose files are in the repo at the deployed sha, in stack order.
-// Others (library code, node internals, unmapped absolute paths) are skipped.
 async function readRepoFrames(input: AttributionInput, deploySha: string): Promise<RepoFrame[]> {
   const repoFrames: RepoFrame[] = [];
   for (const [frameIndex, frame] of input.topFrames.entries()) {
@@ -82,8 +65,6 @@ async function readRepoFrames(input: AttributionInput, deploySha: string): Promi
   return repoFrames;
 }
 
-// Commits in the range that changed the frame's function, found by name
-// first and by the lines around the frame's line if git can't find the name.
 async function listCommitsChangingFrameFunction(repoPath: string, previousSha: string, deploySha: string, frame: RepoFrame): Promise<string[]> {
   if (frame.functionName !== undefined) {
     const commitShas = await listCommitsChangingFunction(repoPath, previousSha, deploySha, frame.filePath, frame.functionName);
@@ -95,7 +76,6 @@ async function listCommitsChangingFrameFunction(repoPath: string, previousSha: s
   return listCommitsChangingLines(repoPath, previousSha, deploySha, frame.filePath, startLine, endLine);
 }
 
-// The top frame: its own line, the lines and functions that feed it.
 async function collectTopFrameFindings(
   repoPath: string,
   previousSha: string,
@@ -138,7 +118,6 @@ async function collectTopFrameFindings(
   for (const calleeName of crashLineInputs.calleeNames) {
     const calleeLocation = findCalleeLocation(topFrame.fileContent, topFrame.filePath, calleeName);
     if (calleeLocation === undefined) continue;
-    // The first candidate path that exists at the deployed sha is the file.
     for (const candidatePath of calleeLocation.candidatePaths) {
       const calleeFileContent = await readFileAtCommit(repoPath, deploySha, candidatePath);
       if (calleeFileContent === undefined) continue;
@@ -177,7 +156,6 @@ export async function attributeRegression(input: AttributionInput): Promise<Attr
   const repoFrames = await readRepoFrames(input, deploySha);
   const findings: Finding[] = [];
 
-  // Commits that changed a file, from the per-commit file lists.
   const commitsChangingFile = (filePath: string) =>
     [...changedFilesByCommit.entries()].filter(([, commitFiles]) => commitFiles.includes(filePath)).map(([commitSha]) => commitSha);
 
@@ -198,14 +176,11 @@ export async function attributeRegression(input: AttributionInput): Promise<Attr
         }),
       );
     }
-    // Rule: only files the deploy really changed (git diff), credited to the
-    // commits that touched them.
     if (changedFiles.includes(frame.filePath)) {
       for (const commitSha of commitsChangingFile(frame.filePath)) findings.push(makeFinding({ ...frameFields, commitSha, strength: "file" }));
     }
   }
 
-  // Lockfiles, config files and migrations rank after every stack frame.
   for (const filePath of changedFiles) {
     const fileCategory = categorizeChangedFile(filePath);
     if (fileCategory === undefined) continue;

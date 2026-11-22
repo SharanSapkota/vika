@@ -1,5 +1,3 @@
-// Groups lines into entries: a line a format recognizes starts an entry, and
-// the stack trace lines after it are attached to it.
 import { buildLogEntry, type EntryDraft } from "./build-log-entry.js";
 import type { LineStart, LogEntry, ParseResult } from "./log-entry-types.js";
 import { ALL_REDACTION_KINDS, type RedactionKind } from "../redaction/redaction-kinds.js";
@@ -13,7 +11,6 @@ export function assembleLogEntries(
 ): ParseResult {
   const entries: LogEntry[] = [];
   let skipped = 0;
-  // "ignored" = inside an entry we don't keep (e.g. INFO), so its stack lines are dropped too.
   let currentEntry: EntryDraft | "ignored" | null = null;
 
   for (const rawLine of lines) {
@@ -24,7 +21,7 @@ export function assembleLogEntries(
     try {
       lineStart = readLineStart(line);
     } catch {
-      lineStart = { kind: "bad" }; // never let one line crash the run
+      lineStart = { kind: "bad" };
     }
 
     if (lineStart.kind === "none") {

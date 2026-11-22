@@ -1,8 +1,5 @@
-// Checks that a deployed sha is really on the production branch.
 import { assertSafeRevision, resolveCommit, runGit } from "./run-git.js";
 
-// Is `sha` on `branch` (the branch contains it)? When the answer is false,
-// `reason` says why, so `vika doctor` can show it.
 export async function checkShaOnBranch(repoPath: string, sha: string, branch: string): Promise<{ onBranch: boolean; reason?: string }> {
   assertSafeRevision(sha, "sha");
   assertSafeRevision(branch, "branch");

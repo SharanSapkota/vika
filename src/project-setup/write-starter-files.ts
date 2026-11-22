@@ -1,13 +1,8 @@
-// The text of the vika.yaml and .env.example that `vika init` writes, from
-// what it detected. Pure. Everything it could not detect gets a sensible
-// default and a "NOT DETECTED" comment saying what to change; the result
-// always passes the configuration schema.
 import { isAbsolute, relative } from "node:path";
 import type { ProjectDetection } from "./detect-project.js";
 
 const MAX_OTHER_LOG_FILES = 5;
 
-// Inside the project folder, a relative path (vika.yaml lives there too).
 function describePath(directory: string, filePath: string): string {
   const relativePath = relative(directory, filePath);
   return relativePath.startsWith("..") || isAbsolute(relativePath) ? filePath : relativePath;

@@ -1,4 +1,3 @@
-// JSON log lines (pino, bunyan, winston and similar).
 import { ALL_REDACTION_KINDS, type RedactionKind } from "../redaction/redaction-kinds.js";
 import { assembleLogEntries } from "./assemble-log-entries.js";
 import { normalizeLevel } from "./log-levels.js";
@@ -13,7 +12,6 @@ function firstString(...values: unknown[]): string | undefined {
   return values.find((value): value is string => typeof value === "string");
 }
 
-// The keys ("time", "ts", "lvl", ...) are what loggers write, so they stay as they are.
 function readTime(jsonObject: JsonObject): string | undefined {
   const value = jsonObject.time ?? jsonObject.timestamp ?? jsonObject.ts ?? jsonObject["@timestamp"];
   if (typeof value === "string") return toIso(value);
@@ -21,7 +19,6 @@ function readTime(jsonObject: JsonObject): string | undefined {
   return undefined;
 }
 
-// undefined/null both mean "not a level we keep".
 function readLevel(jsonObject: JsonObject): Level | null | undefined {
   const value = jsonObject.level ?? jsonObject.severity ?? jsonObject.lvl;
   if (typeof value === "string") return normalizeLevel(value);

@@ -1,8 +1,3 @@
-// Doctor, per service: can vika read the logs, are they in a format it
-// knows, and do stack-trace paths point at files in the repo?
-//
-// A log file is opened and its first lines read; a log command is run ONCE,
-// with a short timeout (it is the command the customer wrote in vika.yaml).
 import { open } from "node:fs/promises";
 import { isAbsolute, resolve } from "node:path";
 import type { LogsSetting } from "../configuration/configuration-schema.js";
@@ -23,14 +18,10 @@ export interface LogsCheckInput {
   logs: LogsSetting;
   configurationDirectory: string;
   pathMap: PathMap | undefined;
-  // Does this repo-relative file exist on the production branch? Undefined
-  // when the branch can't be read (the path check is skipped then).
   doesRepoFileExist: ((repoPath: string) => Promise<boolean>) | undefined;
   commandTimeoutMs?: number;
 }
 
-// The start and the end of a file, without reading all of a big log: the
-// start to check the format, the end for recent stack traces.
 async function readFileSample(filePath: string): Promise<{ firstLines: string[]; lastLines: string[] }> {
   const handle = await open(filePath, "r");
   try {
@@ -41,7 +32,6 @@ async function readFileSample(filePath: string): Promise<{ firstLines: string[];
       return buffer.subarray(0, bytesRead).toString("utf8").split("\n");
     };
     const firstLines = (await readBytes(0)).slice(0, SAMPLE_LINE_COUNT);
-    // The first line of the end sample is usually cut in half: drop it.
     const lastLines = size > SAMPLE_BYTES ? (await readBytes(size - SAMPLE_BYTES)).slice(1) : [];
     return { firstLines, lastLines };
   } finally {
@@ -54,7 +44,7 @@ export async function checkServiceLogs(input: LogsCheckInput): Promise<DoctorChe
   const settingName = `services.${input.serviceName}.logs`;
   const checks: DoctorCheck[] = [];
   let sampleLines: string[];
-  let stackTraceLines: string[]; // where to look for stack-trace paths
+  let stackTraceLines: string[];
 
   if (typeof input.logs === "string") {
     if (GLOB_CHARACTERS.test(input.logs)) {

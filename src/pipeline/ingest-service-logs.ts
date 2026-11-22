@@ -1,11 +1,3 @@
-// Reads one service's new log lines and stores what matters: read from the
-// bookmark, parse (which redacts), group into clusters, then save the
-// clusters, per-minute counts, miner state and new bookmark in one
-// transaction. Raw log lines are never stored.
-//
-// The whole step runs under the service's run lock, so two vika runs can't
-// read the same lines and count them twice. If another run holds the lock,
-// this run skips the service and says so.
 import type { LogsSetting } from "../configuration/configuration-schema.js";
 import type { Bookmark, Store } from "../database/store-types.js";
 import { buildClusters } from "../error-grouping/build-clusters.js";
@@ -23,11 +15,10 @@ export interface IngestInput {
   store: Store;
   serviceName: string;
   logs: LogsSetting;
-  configurationDirectory: string; // relative log file paths are relative to vika.yaml
-  redactionKinds: readonly RedactionKind[]; // vika.yaml's redact list
+  configurationDirectory: string;
+  redactionKinds: readonly RedactionKind[];
 }
 
-// Glob characters: a pattern, not one file.
 const GLOB_CHARACTERS = /[*?[\]{}]/;
 
 export async function ingestServiceLogs(input: IngestInput): Promise<IngestResult> {
@@ -43,9 +34,6 @@ export async function ingestServiceLogs(input: IngestInput): Promise<IngestResul
     if (newLines.nextFileBookmark !== undefined) bookmark.file = newLines.nextFileBookmark;
     const previousLastTimestamp = newLines.previousBookmark?.lastTimestamp;
     if (previousLastTimestamp !== undefined) bookmark.lastTimestamp = previousLastTimestamp;
-    // The newest line read moves the bookmark's time forward. The earliest
-    // line read is offered as the history start; the store keeps only the
-    // first one it ever gets.
     const timestampRange = findTimestampRange(newLines.lines);
     if (timestampRange !== undefined) {
       if (previousLastTimestamp === undefined || timestampRange.newest > previousLastTimestamp) bookmark.lastTimestamp = timestampRange.newest;

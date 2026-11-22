@@ -1,6 +1,3 @@
-// Doctor: do the tracker credentials work? One cheap authenticated call
-// (Jira /myself, Linear viewer). Errors are already plain English and
-// token-free (send-tracker-request), and are masked again here.
 import { hideSecrets } from "../configuration/hide-secrets.js";
 import type { TicketTracker } from "../ticket-trackers/tracker-types.js";
 import { failCheck, passCheck, type DoctorCheck } from "./doctor-check-types.js";

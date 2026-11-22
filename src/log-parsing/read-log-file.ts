@@ -1,9 +1,8 @@
-// Reads new lines from a log file, starting where the last run stopped.
 import { open } from "node:fs/promises";
 
 export interface FileBookmark {
-  offset: number; // bytes already consumed
-  inode: number; // which file that offset belongs to
+  offset: number;
+  inode: number;
 }
 
 export interface FileReadResult {
@@ -11,9 +10,6 @@ export interface FileReadResult {
   next: FileBookmark;
 }
 
-// A different inode, or a file shorter than the bookmark, means the file
-// was rotated or truncated: read it from the start. A partial last line
-// (no newline yet) is left for the next run.
 export async function readFile(path: string, bookmark?: FileBookmark): Promise<FileReadResult> {
   const handle = await open(path, "r");
   try {

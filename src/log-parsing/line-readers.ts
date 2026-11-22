@@ -1,4 +1,3 @@
-// Which line reader and which parser belong to each log format.
 import type { RedactionKind } from "../redaction/redaction-kinds.js";
 import { parseJson, readJsonStart } from "./json-log-format.js";
 import type { LineStart, LogFormat, ParseResult } from "./log-entry-types.js";

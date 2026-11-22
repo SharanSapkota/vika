@@ -1,17 +1,6 @@
-// The shape of vika.yaml, as a zod schema, and the TypeScript types it gives.
-//
-// The keys here (services, repo, logs, command, pathMap, branch, pathPrefix,
-// deploys, source, tracker, type, project, team, redact) are what customers
-// write in vika.yaml. Never rename them: that would break existing files.
-//
-// Every check has its own plain-English message ("must not be empty"), so
-// configuration-errors.ts can print "services.api.branch must not be empty".
-// Unknown keys are rejected, so a typo like "brnach:" is caught instead of
-// silently falling back to the default.
 import { z } from "zod";
 import { REDACTION_KINDS } from "../redaction/redaction-kinds.js";
 
-// Service names become labels and database keys, so keep them simple.
 export const SERVICE_NAME_PATTERN = /^[a-z0-9-]+$/;
 export const DEPLOY_SOURCES = ["merges", "marker", "logs-version", "github"] as const;
 
@@ -66,7 +55,6 @@ const webhookSchema = z.strictObject(
         context.addIssue({ code: "custom", message: "must use https (plain http is only allowed for localhost)" });
       }
     }),
-    // The signing secret is a secret: it belongs in .env, never in vika.yaml.
     secret: z.undefined({ error: "must not be in vika.yaml: put it in .env as VIKA_WEBHOOK_SECRET" }).optional(),
   },
   { error: "must be { url: ... }" },

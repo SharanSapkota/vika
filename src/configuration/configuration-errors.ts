@@ -1,6 +1,3 @@
-// One error that lists every configuration problem at once, so a customer
-// fixes them all in one go instead of one per run. Messages name the exact
-// setting ("services.api.logs is missing") and never include secret values.
 import type { z } from "zod";
 
 export class ConfigurationError extends Error {
@@ -13,7 +10,6 @@ export class ConfigurationError extends Error {
   }
 }
 
-// ["services", "api", "logs"] -> "services.api.logs"; ["redact", 0] -> "redact[0]".
 function formatSettingName(path: PropertyKey[]): string {
   let settingName = "";
   for (const part of path) {
@@ -23,8 +19,6 @@ function formatSettingName(path: PropertyKey[]): string {
   return settingName === "" ? "vika.yaml" : settingName;
 }
 
-// zod issues (parsed with reportInput: true) -> plain-English problems.
-// The input is only ever echoed for short choice values, never for whole objects.
 export function describeSchemaIssues(issues: z.core.$ZodIssue[]): string[] {
   return issues.flatMap((issue): string[] => {
     const settingName = formatSettingName(issue.path);

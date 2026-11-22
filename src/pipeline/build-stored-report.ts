@@ -1,8 +1,3 @@
-// The report from what is already stored: no logs are read and no deploys
-// are loaded from git (that is `vika run`'s job). Detection and attribution
-// run on the stored clusters, counts and deploys (attribution reads git, but
-// only reads). Used by the dashboard, for the page and for every Refresh.
-// One service failing doesn't stop the others.
 import { collectSecrets, hideSecrets } from "../configuration/hide-secrets.js";
 import type { LoadedConfiguration } from "../configuration/load-configuration.js";
 import type { Store } from "../database/store-types.js";

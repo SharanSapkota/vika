@@ -1,7 +1,3 @@
-// Doctor: is the webhook set up right? An invalid URL never gets this far
-// (vika.yaml fails to load and check-configuration reports it under
-// "webhook"). Shows only the URL's host: the path often carries a token.
-// Pure; sends nothing.
 import type { LoadedConfiguration } from "../configuration/load-configuration.js";
 import { passCheck, warnCheck, type DoctorCheck } from "./doctor-check-types.js";
 

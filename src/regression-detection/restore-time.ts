@@ -2,10 +2,6 @@ import { sumCountsBetween, type CountSeries } from "./count-series.js";
 import { isAboveNoise } from "./noise-check.js";
 import { floorToMinuteMs, MINUTE_MS, toIsoTimestamp } from "./time-units.js";
 
-// The first minute after which the group stays at baseline level: every
-// quietMinutes window from then on is within normal noise for the
-// baseline rate (for a new group: zero occurrences). It must be confirmed by
-// a full quiet window inside the data, otherwise null (still ongoing).
 export function findRestoreTime(
   series: CountSeries,
   startMs: number,

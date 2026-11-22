@@ -1,4 +1,3 @@
-// Time helpers the detector shares. All times inside the detector are epoch ms.
 
 export const MINUTE_MS = 60_000;
 export const HOUR_MS = 3_600_000;

@@ -1,15 +1,6 @@
-// READ-ONLY git reads for suspect attribution: file contents, blame, and
-// which commits in a deploy changed which files, lines and functions.
-//
-// Safety: only blame, diff, log and show are run, always through runGit (no
-// shell, arguments as an array, cwd = the repo path). Code is always read at
-// the deployed sha, never at HEAD or in the working tree. Refs and paths
-// that start with "-" are refused so git can never read them as options.
 import { assertSafeRevision, runGit, runGitOrThrow } from "../deploys/run-git.js";
 import { escapeForRegex } from "./function-names.js";
 
-// Printed before each commit sha in `git log` output, so commit lines can be
-// told apart from file names and diff lines (none of which start with it).
 const COMMIT_MARKER = "vika-commit ";
 const COMMIT_LINE = /^vika-commit ([0-9a-f]{40}|[0-9a-f]{64})$/;
 const FULL_SHA = /^(?:[0-9a-f]{40}|[0-9a-f]{64})$/;
@@ -18,7 +9,6 @@ export function assertSafePath(filePath: string): void {
   if (filePath === "" || filePath.startsWith("-") || /[\0\n\r]/.test(filePath)) throw new Error(`invalid path: "${filePath}"`);
 }
 
-// Commit shas from `git log --format="vika-commit %H"` output, in log order.
 function parseCommitLines(gitOutput: string): string[] {
   const commitShas: string[] = [];
   for (const line of gitOutput.split("\n")) {
@@ -28,17 +18,13 @@ function parseCommitLines(gitOutput: string): string[] {
   return commitShas;
 }
 
-// The file's content at `commitSha`, or undefined if it doesn't exist there.
 export async function readFileAtCommit(repoPath: string, commitSha: string, filePath: string): Promise<string | undefined> {
   assertSafeRevision(commitSha, "sha");
   assertSafePath(filePath);
-  // --no-textconv: the stored content, not a filter's rendering of it.
   const result = await runGit(repoPath, ["show", "--no-textconv", `${commitSha}:${filePath}`, "--"]);
   return result.exitCode === 0 ? result.stdout : undefined;
 }
 
-// Commits listed in .git-blame-ignore-revs at the deployed sha (formatting
-// sweeps and the like), so blame looks past them. Empty if there is no file.
 export async function readBlameIgnoreRevisions(repoPath: string, deploySha: string): Promise<string[]> {
   const fileContent = await readFileAtCommit(repoPath, deploySha, ".git-blame-ignore-revs");
   if (fileContent === undefined) return [];
@@ -63,7 +49,6 @@ function parseBlamePorcelain(blameOutput: string): BlamedLine {
   let authorEmail = "";
   let lineText = "";
   for (const line of outputLines.slice(1)) {
-    // The line's own text comes last, after a tab.
     if (line.startsWith("\t")) {
       lineText = line.slice(1);
       break;
@@ -74,9 +59,6 @@ function parseBlamePorcelain(blameOutput: string): BlamedLine {
   return { commitSha, lineText, authorName, authorEmail };
 }
 
-// Who last changed one line, as of the deployed sha. -w ignores whitespace
-// changes; -M and -C follow lines moved or copied within and across files,
-// so a reformat or a move doesn't hide the commit that wrote the line.
 export async function blameLine(
   repoPath: string,
   deploySha: string,
@@ -101,13 +83,10 @@ export async function blameLine(
   ];
   const result = await runGit(repoPath, blameArguments(ignoredRevisions));
   if (result.exitCode === 0) return parseBlamePorcelain(result.stdout);
-  // An ignore file can list commits this clone doesn't have, and git refuses
-  // to run then. A plain blame is better than none.
   if (ignoredRevisions.length > 0) return parseBlamePorcelain(await runGitOrThrow(repoPath, blameArguments([])));
   throw new Error(`git blame failed in ${repoPath}: ${result.stderr.trim()}`);
 }
 
-// Files that differ between the two deploys: git diff --name-only previousSha..deploySha.
 export async function listChangedFiles(repoPath: string, previousSha: string, deploySha: string): Promise<string[]> {
   assertSafeRevision(previousSha, "sha");
   assertSafeRevision(deploySha, "sha");
@@ -115,7 +94,6 @@ export async function listChangedFiles(repoPath: string, previousSha: string, de
   return gitOutput.split("\n").filter((filePath) => filePath !== "");
 }
 
-// Which files each commit in the range changed: commit sha -> file paths.
 export async function listChangedFilesByCommit(repoPath: string, previousSha: string, deploySha: string): Promise<Map<string, string[]>> {
   assertSafeRevision(previousSha, "sha");
   assertSafeRevision(deploySha, "sha");
@@ -134,9 +112,6 @@ export async function listChangedFilesByCommit(repoPath: string, previousSha: st
   return changedFilesByCommit;
 }
 
-// Commits in previousSha..deploySha that changed the function `functionName`
-// in `filePath` (git log -L :function:file). Undefined when git can't find
-// the function in the file, so the caller can fall back to a line range.
 export async function listCommitsChangingFunction(
   repoPath: string,
   previousSha: string,
@@ -147,11 +122,9 @@ export async function listCommitsChangingFunction(
   assertSafeRevision(previousSha, "sha");
   assertSafeRevision(deploySha, "sha");
   assertSafePath(filePath);
-  // git reads the name as a regex. Names are plain identifiers (letters,
-  // digits, "_" and "$"), so escaping "$" is all that matters.
   const result = await runGit(repoPath, [
     "log",
-    "-s", // commit lines only, no patches
+    "-s",
     `--format=${COMMIT_MARKER}%H`,
     "-L",
     `:${escapeForRegex(functionName)}:${filePath}`,
@@ -161,8 +134,6 @@ export async function listCommitsChangingFunction(
   return result.exitCode === 0 ? parseCommitLines(result.stdout) : undefined;
 }
 
-// Commits in previousSha..deploySha that changed lines startLine..endLine of
-// `filePath` (line numbers as of deploySha).
 export async function listCommitsChangingLines(
   repoPath: string,
   previousSha: string,

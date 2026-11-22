@@ -1,10 +1,3 @@
-// Runs every service in vika.yaml through the pipeline: read new logs,
-// bring deploys up to date, detect regressions, name suspects. Shared by
-// `vika report` and `vika run`.
-//
-// One service failing never stops the others: its error is caught, masked,
-// recorded as status "failed", and shown in the report as a skipped service
-// with the reason. A service whose lock is held by another run is "busy".
 import { dirname } from "node:path";
 import { collectSecrets, hideSecrets } from "../configuration/hide-secrets.js";
 import type { LoadedConfiguration } from "../configuration/load-configuration.js";
@@ -17,14 +10,12 @@ import { loadDeploysForService } from "./load-deploys-for-service.js";
 export interface ServiceRunStatus {
   serviceName: string;
   status: "ok" | "busy" | "failed";
-  message: string | null; // why, for busy and failed
+  message: string | null;
 }
 
 export interface AllServicesResult {
-  serviceInputs: ServiceReportInput[]; // one per service, in name order
+  serviceInputs: ServiceReportInput[];
   serviceStatuses: ServiceRunStatus[];
-  // What this run did ("read 5812 new log lines"). Kept out of the report,
-  // so the same stored data always gives the same report.
   runNotes: string[];
 }
 
@@ -81,7 +72,6 @@ async function runOneService(
 export async function runAllServices(store: Store, configuration: LoadedConfiguration): Promise<AllServicesResult> {
   const secrets = collectSecrets(configuration);
   const result: AllServicesResult = { serviceInputs: [], serviceStatuses: [], runNotes: [] };
-  // Sorted, so the report lists services in the same order every time.
   for (const serviceName of Object.keys(configuration.services).sort()) {
     try {
       const { serviceInput, status } = await runOneService(store, configuration, serviceName, result.runNotes);

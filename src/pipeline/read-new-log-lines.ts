@@ -1,6 +1,3 @@
-// Reads the lines a service's log source has added since the last run:
-// a file from its byte-offset bookmark, or a command's output newer than
-// its timestamp bookmark. Errors name the setting and the file, in plain English.
 import { isAbsolute, resolve } from "node:path";
 import type { LogsSetting } from "../configuration/configuration-schema.js";
 import type { Bookmark, Store } from "../database/store-types.js";
@@ -8,19 +5,16 @@ import type { FileBookmark } from "../log-parsing/read-log-file.js";
 import { readFile } from "../log-parsing/read-log-file.js";
 import { readCommand } from "../log-parsing/read-log-command.js";
 
-// A log command that runs longer than this is stopped; what it printed so far is used.
 export const LOG_COMMAND_TIMEOUT_MS = 60_000;
 
 export interface NewLogLines {
-  sourceKey: string; // which bookmark these lines belong to
+  sourceKey: string;
   lines: string[];
   previousBookmark: Bookmark | undefined;
-  nextFileBookmark: FileBookmark | undefined; // files only
-  notes: string[]; // e.g. "the log command exited with code 1"
+  nextFileBookmark: FileBookmark | undefined;
+  notes: string[];
 }
 
-// Key under which the bookmark is saved. Changing the path or the command
-// starts a new bookmark (and reads that source from the start).
 export function makeSourceKey(logs: LogsSetting, configurationDirectory: string): string {
   if (typeof logs !== "string") return `command:${logs.command}`;
   return `file:${isAbsolute(logs) ? logs : resolve(configurationDirectory, logs)}`;

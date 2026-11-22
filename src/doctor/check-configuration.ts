@@ -1,6 +1,3 @@
-// Doctor: is vika.yaml there and valid, and is the environment complete?
-// Each configuration problem becomes its own FAIL line, under the area it
-// belongs to (a missing JIRA_API_TOKEN is a tracker problem).
 import { ConfigurationError } from "../configuration/configuration-errors.js";
 import { loadConfiguration, type LoadConfigurationOptions, type LoadedConfiguration } from "../configuration/load-configuration.js";
 import { failCheck, passCheck, type DoctorCheck } from "./doctor-check-types.js";

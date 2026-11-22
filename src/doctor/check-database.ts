@@ -1,6 +1,3 @@
-// Doctor: does DATABASE_URL connect, and are vika's migrations applied?
-// Pure: takes the inspection result (from inspectDatabase) and the
-// configuration's URL warnings. Never shows the URL or its password.
 import type { DatabaseInspection } from "../database/database-store.js";
 import { failCheck, passCheck, warnCheck, type DoctorCheck } from "./doctor-check-types.js";
 

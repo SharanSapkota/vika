@@ -1,4 +1,3 @@
-// nginx error log and access log lines. Access lines count only for 5xx.
 import { ALL_REDACTION_KINDS, type RedactionKind } from "../redaction/redaction-kinds.js";
 import { buildLogEntry } from "./build-log-entry.js";
 import { normalizeLevel } from "./log-levels.js";
@@ -34,7 +33,6 @@ export function readNginxLine(line: string): LineStart {
   return { kind: "none" };
 }
 
-// nginx never writes stack traces, so every line stands alone.
 export function parseNginx(lines: string[], redactionKinds: readonly RedactionKind[] = ALL_REDACTION_KINDS): ParseResult {
   const entries: LogEntry[] = [];
   let skipped = 0;

@@ -1,13 +1,10 @@
-// Per-minute counts as a sorted series with running totals, so the count in
-// any time range can be summed quickly.
 import { floorToMinuteMs, parseTimeMs } from "./time-units.js";
 
 export interface CountSeries {
-  minutes: number[]; // minute start (epoch ms), sorted
-  runningTotals: number[]; // runningTotals[index] = total of counts before minutes[index]; one longer than minutes
+  minutes: number[];
+  runningTotals: number[];
 }
 
-// Merges per-minute counts into `countsByMinute`, keeping the larger number on overlap.
 export function mergeCounts(countsByMinute: Map<number, number>, countsPerMinute: Record<string, number>): void {
   for (const [minuteKey, count] of Object.entries(countsPerMinute)) {
     const minuteMs = floorToMinuteMs(parseTimeMs(minuteKey, "minute"));
@@ -22,7 +19,6 @@ export function buildCountSeries(countsByMinute: Map<number, number>): CountSeri
   return { minutes, runningTotals };
 }
 
-// Index of the first minute >= targetMinuteMs (binary search).
 export function findFirstIndexAtOrAfter(minutes: number[], targetMinuteMs: number): number {
   let low = 0;
   let high = minutes.length;
@@ -34,7 +30,6 @@ export function findFirstIndexAtOrAfter(minutes: number[], targetMinuteMs: numbe
   return low;
 }
 
-// Total count for minutes in [fromMs, toMs).
 export function sumCountsBetween(series: CountSeries, fromMs: number, toMs: number): number {
   if (toMs <= fromMs) return 0;
   return (

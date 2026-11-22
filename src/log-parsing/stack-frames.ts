@@ -1,4 +1,3 @@
-// Reads one "at ..." line of a JavaScript stack trace.
 import type { Frame } from "./log-entry-types.js";
 
 const STACK_FRAME_LINE = /^\s*at\s+(?:(.+?)\s+\((.+):(\d+):\d+\)|(.+):(\d+):\d+)\s*$/;

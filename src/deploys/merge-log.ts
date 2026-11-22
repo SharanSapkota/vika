@@ -4,7 +4,7 @@ import { toUtcIso } from "./utc-timestamp.js";
 export interface MergeCommit {
   sha: string;
   parents: string[];
-  time: string; // ISO, UTC
+  time: string;
   subject: string;
 }
 

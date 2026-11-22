@@ -1,19 +1,6 @@
-// Finds what the failing line depends on, inside its own function:
-//   - lines above it that set a variable it reads ("const user = ...")
-//   - functions whose return value it reads ("const user = getUser(...)",
-//     or a call on the failing line itself)
-// A bug is often not on the line that throws but in where its values came
-// from: "user.email" fails because getUser() started returning null.
-//
-// A plain-text heuristic for JavaScript and TypeScript. It follows one step
-// only (not the inputs of the inputs), which keeps it simple and predictable.
 import { isFunctionDefinitionLine } from "./function-names.js";
 
-// If the function's definition line can't be found (no name in the stack
-// frame, or an unusual definition), look this many lines above the failing line.
 const FALLBACK_LOOKBACK_LINES = 30;
-// Give up looking for the definition line after this many lines: further up
-// it is more likely another function with the same name.
 const MAX_FUNCTION_LINES = 300;
 
 const KEYWORDS = new Set([
@@ -29,17 +16,14 @@ const ASSIGNMENT = /^\s*(?:const|let|var)?\s*([A-Za-z_$][\w$]*)\s*=(?![=>])\s*(.
 const DIRECT_CALL_START = /^(?:await\s+)?([A-Za-z_$][\w$]*)\s*\(/;
 
 export interface CrashLineInputs {
-  inputLineNumbers: number[]; // lines in the function that set a value the failing line reads
-  calleeNames: string[]; // functions whose return value the failing line reads
+  inputLineNumbers: number[];
+  calleeNames: string[];
 }
 
-// Strings and comments can hold words that look like names; blank them out.
 function removeStringsAndComments(line: string): string {
   return line.replace(/(["'`])(?:\\.|(?!\1)[^\\])*\1/g, '""').replace(/\/\/.*$/, "");
 }
 
-// Names the line reads: identifiers that are not property names (after ".")
-// and not keywords. The name a declaration creates is not read.
 function findReadNames(code: string): Set<string> {
   const declaredName = /^\s*(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*=/.exec(code)?.[1];
   const readNames = new Set<string>();
@@ -50,8 +34,6 @@ function findReadNames(code: string): Set<string> {
   return readNames;
 }
 
-// The index of the failing function's definition line, or the fallback
-// starting point when it can't be found.
 function findFunctionStartIndex(fileLines: string[], crashIndex: number, functionName: string | undefined): number {
   if (functionName !== undefined) {
     for (let lineIndex = crashIndex - 1; lineIndex >= Math.max(0, crashIndex - MAX_FUNCTION_LINES); lineIndex--) {
@@ -76,7 +58,6 @@ export function findCrashLineInputs(fileContent: string, crashLineNumber: number
 
   const inputLineNumbers: number[] = [];
   const functionStartIndex = findFunctionStartIndex(fileLines, crashIndex, functionName);
-  // The definition line itself only holds parameters, so start below it.
   for (let lineIndex = functionStartIndex + 1; lineIndex < crashIndex; lineIndex++) {
     const assignmentMatch = ASSIGNMENT.exec(removeStringsAndComments(fileLines[lineIndex]!));
     if (!assignmentMatch || !readNames.has(assignmentMatch[1]!)) continue;

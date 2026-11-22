@@ -1,5 +1,3 @@
-// Recognizes changed files that can break a service without touching the
-// code in the stack trace: dependency lockfiles, config files, migrations.
 import type { ChangedFileCategory } from "./suspect-types.js";
 
 const LOCKFILE_NAMES = new Set([
@@ -25,14 +23,12 @@ const CONFIG_FOLDERS = new Set(["config", "configs", "configuration", "settings"
 
 const MIGRATION_FOLDERS = new Set(["migrations", "migration", "migrate"]);
 
-// Returns undefined for ordinary source files.
 export function categorizeChangedFile(filePath: string): ChangedFileCategory | undefined {
   const pathParts = filePath.split("/");
   const fileName = pathParts[pathParts.length - 1] ?? "";
   const folderNames = pathParts.slice(0, -1);
 
   if (LOCKFILE_NAMES.has(fileName)) return "lockfile";
-  // Migrations first: a .sql or .yaml file inside migrations/ is a migration, not config.
   if (folderNames.some((folderName) => MIGRATION_FOLDERS.has(folderName)) || fileName.endsWith(".sql")) return "migration";
   if (
     CONFIG_FILE_NAMES.has(fileName) ||

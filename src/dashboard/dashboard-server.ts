@@ -1,16 +1,4 @@
-// The local dashboard server: node:http only, listening on 127.0.0.1 only
-// (never 0.0.0.0), so nothing outside this computer can reach it.
-//
-//   GET  /              the page (dashboard-page.ts), with this start's token
-//   GET  /api/report    the report object, exactly as `vika report --json`
-//   GET  /api/settings  what the page needs besides the report (tracker type,
-//                       GitHub new-issue links); never any credential
-//   POST /api/tickets   { service, deploySha }: files that deploy's ticket with
-//                       the shared createTicket, server-side. The tracker token
-//                       never leaves this process.
-//
-// It only reads stored data: it never reads logs or loads deploys. Every
-// request goes through request-guard.ts first.
+
 import { randomBytes } from "node:crypto";
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 import type { AddressInfo } from "node:net";
@@ -74,8 +62,6 @@ function sendJson(response: ServerResponse, httpStatus: number, value: unknown):
 
 export async function startDashboardServer(options: DashboardServerOptions): Promise<RunningDashboard> {
   const { configuration, store, secrets } = options;
-  // A fresh token and nonce for every start: a page from an earlier start
-  // (or anyone who saw one) can't use them.
   const token = randomBytes(32).toString("hex");
   const nonce = randomBytes(16).toString("hex");
   const tracker = createTracker(configuration, options.fetchFunction, secrets);

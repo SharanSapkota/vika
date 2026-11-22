@@ -1,4 +1,3 @@
-// Plain text lines: "<timestamp> <LEVEL> <message>", level optionally in [brackets].
 import { ALL_REDACTION_KINDS, type RedactionKind } from "../redaction/redaction-kinds.js";
 import { assembleLogEntries } from "./assemble-log-entries.js";
 import { normalizeLevel } from "./log-levels.js";

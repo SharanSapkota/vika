@@ -1,15 +1,3 @@
-// Finds error groups that are regressions caused by a deploy.
-//
-// Pure: plain data in, plain data out. No database, no git. The caller loads
-// deploys and counts through the store and passes them in, one service at a
-// time.
-//
-// Two kinds of regression:
-//   "new":   a group that wasn't in the baseline and first appeared shortly
-//            after the deploy.
-//   "spike": a group that was in the baseline but whose rate right after the
-//            deploy is far above its baseline rate.
-// A steady background error (same rate before and after) is never flagged.
 import { buildCountSeries, findFirstIndexAtOrAfter, mergeCounts, sumCountsBetween, type CountSeries } from "./count-series.js";
 import {
   DEFAULT_DETECT_OPTIONS,
@@ -29,15 +17,15 @@ const roundToThreeDecimals = (value: number) => Math.round(value * 1000) / 1000;
 interface GroupCounts {
   fingerprint: string;
   series: CountSeries;
-  firstSeenMs: number; // earliest of the cluster's firstSeen and its first counted minute
+  firstSeenMs: number;
   firstSeenIso: string;
 }
 
 interface DeployWindow {
   sha: string;
   timeMs: number;
-  startMs: number; // the deploy's minute: post-deploy counting starts here
-  endMs: number; // where its window ends: the next deploy's minute, or the end of data
+  startMs: number;
+  endMs: number;
   status: DeployStatus;
 }
 
@@ -46,11 +34,8 @@ export function detectRegressions(input: DetectInput): DetectResult {
   const newWindowMs = options.newWindowMinutes * MINUTE_MS;
   const baselineSpanMs = options.baselineDays * 24 * HOUR_MS;
 
-  // One service only: anything labelled with another service is ignored, so
-  // another service's deploy can never be blamed.
   const isForThisService = <T extends { service?: string }>(item: T) => item.service === undefined || item.service === input.service;
 
-  // Per-group counts: cluster counts merged with baseline counts.
   const groups: GroupCounts[] = [];
   const baselineOnlyCounts = new Map(Object.entries(input.baseline ?? {}));
   const sortedClusters = [...input.clusters.filter(isForThisService)].sort((left, right) =>
@@ -63,8 +48,6 @@ export function detectRegressions(input: DetectInput): DetectResult {
     if (baselineCountsForCluster) mergeCounts(countsByMinute, baselineCountsForCluster);
     baselineOnlyCounts.delete(cluster.fingerprint);
     const series = buildCountSeries(countsByMinute);
-    // The cluster's exact first-seen time, unless older counts (e.g. from the
-    // baseline) show the group even earlier; then that minute.
     const clusterFirstSeenMs = parseTimeMs(cluster.firstSeen, "firstSeen");
     const firstCountedMinuteMs = series.minutes[0];
     const firstSeenMs =
@@ -72,7 +55,6 @@ export function detectRegressions(input: DetectInput): DetectResult {
     groups.push({ fingerprint: cluster.fingerprint, series, firstSeenMs, firstSeenIso: toIsoTimestamp(firstSeenMs) });
   }
 
-  // History start and data end, from all counts (including baseline-only groups).
   let earliestMs = Infinity;
   let latestMs = -Infinity;
   for (const group of groups) {
@@ -89,7 +71,6 @@ export function detectRegressions(input: DetectInput): DetectResult {
   const historyStartMs = input.historyStart !== undefined ? parseTimeMs(input.historyStart, "historyStart") : earliestMs;
   const dataEndMs = input.dataEnd !== undefined ? parseTimeMs(input.dataEnd, "dataEnd") : latestMs;
 
-  // Deploys, oldest first (stable for equal times), with their windows and status.
   const sortedDeploys = input.deploys
     .filter(isForThisService)
     .map((deploy, inputIndex) => ({ deploy, inputIndex, timeMs: parseTimeMs(deploy.time, "deploy time") }))
@@ -106,8 +87,6 @@ export function detectRegressions(input: DetectInput): DetectResult {
     };
   });
 
-  // Ambiguous: another deploy of this service happened within
-  // newWindowMinutes before this one (either could be the cause).
   const isAmbiguous = (deployIndex: number) =>
     deploys.some(
       (otherDeploy, otherIndex) =>
@@ -116,7 +95,6 @@ export function detectRegressions(input: DetectInput): DetectResult {
         deploys[deployIndex]!.timeMs - otherDeploy.timeMs <= newWindowMs,
     );
 
-  // deployOrder is the deploy's position, used for sorting and verdicts, then dropped.
   const regressions: (Regression & { deployOrder: number })[] = [];
   const addRegression = (deployIndex: number, group: GroupCounts, kind: "new" | "spike", firstSeen: string, baselineRate: number) => {
     const deploy = deploys[deployIndex]!;
@@ -145,7 +123,6 @@ export function detectRegressions(input: DetectInput): DetectResult {
   };
 
   for (const group of groups) {
-    // NEW: belongs to the latest deploy at or before the group's first seen.
     let latestDeployIndex = -1;
     for (let deployIndex = 0; deployIndex < deploys.length; deployIndex++) {
       if (deploys[deployIndex]!.timeMs <= group.firstSeenMs) latestDeployIndex = deployIndex;
@@ -161,21 +138,15 @@ export function detectRegressions(input: DetectInput): DetectResult {
       addRegression(latestDeployIndex, group, "new", group.firstSeenIso, 0);
     }
 
-    // SPIKE: for each judged deploy where this group was already in the baseline.
     for (let deployIndex = 0; deployIndex < deploys.length; deployIndex++) {
       const deploy = deploys[deployIndex]!;
       if (deploy.status !== "checked") continue;
-      // Baseline: whole minutes before the deploy, back to the window start,
-      // the history start, or when this group first appeared (whichever is
-      // latest), so a group that only began yesterday isn't diluted over 7 days.
       const baselineStartMs = Math.max(deploy.timeMs - baselineSpanMs, historyStartMs, floorToMinuteMs(group.firstSeenMs));
       const baselineCount = sumCountsBetween(group.series, baselineStartMs, deploy.startMs);
       const baselineHours = (deploy.startMs - baselineStartMs) / HOUR_MS;
       if (baselineCount === 0 || baselineHours <= 0) continue;
       const baselineRate = baselineCount / baselineHours;
 
-      // Compare the first newWindowMinutes after the deploy with what the
-      // baseline rate predicts for that long.
       const windowEndMs = Math.min(deploy.startMs + newWindowMs, deploy.endMs);
       if (windowEndMs <= deploy.startMs) continue;
       const observed = sumCountsBetween(group.series, deploy.startMs, windowEndMs);
@@ -187,7 +158,6 @@ export function detectRegressions(input: DetectInput): DetectResult {
     }
   }
 
-  // Stable output order: by deploy, then first seen, then fingerprint.
   regressions.sort(
     (left, right) =>
       left.deployOrder - right.deployOrder ||
@@ -197,7 +167,6 @@ export function detectRegressions(input: DetectInput): DetectResult {
 
   return {
     regressions: regressions.map(({ deployOrder: _deployOrder, ...regression }) => regression),
-    // Matched by position, not sha: the same sha can be deployed twice.
     deploys: deploys.map((deploy, deployIndex) => ({
       deploySha: deploy.sha,
       time: toIsoTimestamp(deploy.timeMs),

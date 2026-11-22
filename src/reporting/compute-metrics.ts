@@ -1,14 +1,3 @@
-// The two delivery numbers, from detector output only. Pure.
-//
-//   change failure rate = failed deploys / judged deploys
-//     Judged means the detector could check it: starting points and deploys
-//     with too little history ("insufficient_baseline") are left out, so a
-//     cold start never looks like a perfect record.
-//   median time to restore = median of (restoredAt - firstSeen) over the
-//     regressions that were restored; ongoing ones are counted separately.
-//
-// With nothing to measure, a number is null with the note "not enough
-// data", never a division by zero.
 import type { DeployStatus } from "../regression-detection/detection-types.js";
 import { LOG_DERIVED, NOT_ENOUGH_DATA, type DeliveryMetrics } from "./report-types.js";
 
@@ -54,8 +43,6 @@ export function computeMetrics(input: MetricsInput): DeliveryMetrics {
   };
 }
 
-// All services together: their deploys and regressions pooled, not their
-// rates averaged (a service with 1 deploy shouldn't weigh as much as one with 50).
 export function rollUpMetrics(serviceInputs: MetricsInput[]): DeliveryMetrics {
   return computeMetrics({
     deploys: serviceInputs.flatMap((serviceInput) => serviceInput.deploys),

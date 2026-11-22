@@ -1,6 +1,3 @@
-// Puts stored data, detector output and suspects together into one report
-// object. Pure: no database, no git, no clock. The "as of" time is the
-// latest log line read, so the same data always gives the same report.
 import type { Deploy, StoredCluster } from "../database/store-types.js";
 import type { DetectResult } from "../regression-detection/detection-types.js";
 import type { AttributionResult } from "../suspect-attribution/suspect-types.js";
@@ -16,15 +13,11 @@ export interface ServiceReportInput {
   clusters: StoredCluster[];
   countsByFingerprint: Record<string, Record<string, number>>;
   deploys: Deploy[];
-  detection: DetectResult; // empty when skipped
-  // One per detection.regressions entry, in the same order.
+  detection: DetectResult;
   attributions: AttributionResult[];
   lastLogTimestamp: string | null;
 }
 
-// One line that says what the error is: the line naming the exception if
-// there is one ("TypeError: Cannot read ..."), else the first line. Taken
-// from a stored example, which was redacted before it was stored.
 function writeHeadline(cluster: StoredCluster | undefined): string {
   if (cluster === undefined) return "(unknown error group)";
   const exampleLines = (cluster.examples[0] ?? cluster.template).split("\n").map((line) => line.trim());
@@ -96,7 +89,6 @@ export function buildReport(serviceInputs: ServiceReportInput[]): Report {
     schemaVersion: REPORT_SCHEMA_VERSION,
     asOf: lastLogTimestamps.at(-1) ?? null,
     services: builtServices.map((builtService) => builtService.serviceReport),
-    // Skipped services have no data in this run, so they don't count.
     metrics: rollUpMetrics(builtServices.filter((builtService) => !builtService.serviceReport.isSkipped).map((builtService) => builtService.metricsInput)),
   };
 }

@@ -1,4 +1,3 @@
-// Doctor, per service: will vika know when deploys happened? Pure.
 import type { DeploySource } from "../configuration/configuration-schema.js";
 import { passCheck, warnCheck, type DoctorCheck } from "./doctor-check-types.js";
 
@@ -6,7 +5,7 @@ export interface DeploysCheckInput {
   serviceName: string;
   source: DeploySource;
   branch: string;
-  storedDeployCount: number | null; // null when the database couldn't be read
+  storedDeployCount: number | null;
 }
 
 export function checkDeploys(input: DeploysCheckInput): DoctorCheck[] {

@@ -1,9 +1,3 @@
-// Doctor, per service: is `repo` a git repo, does the branch exist, is the
-// checkout on it, and are the stored deploys really on it? Read-only git.
-//
-// vika reads the branch itself, never the checkout's HEAD, so a checkout on
-// another branch is only a WARN. A missing branch, or a stored deploy that
-// isn't on the branch, is a FAIL: vika can't attribute anything then.
 import { existsSync, statSync } from "node:fs";
 import type { Deploy } from "../database/store-types.js";
 import { checkShaOnBranch } from "../deploys/check-sha-on-branch.js";
@@ -14,10 +8,9 @@ export interface RepositoryCheckInput {
   serviceName: string;
   repoPath: string;
   branch: string;
-  latestStoredDeploy: Deploy | null; // null when none, or the database couldn't be read
+  latestStoredDeploy: Deploy | null;
 }
 
-// The checks, and whether the branch can be read (later checks need it).
 export async function checkServiceRepository(input: RepositoryCheckInput): Promise<{ checks: DoctorCheck[]; isBranchReadable: boolean }> {
   const area = `service ${input.serviceName}: repo`;
   const settingName = `services.${input.serviceName}.repo`;

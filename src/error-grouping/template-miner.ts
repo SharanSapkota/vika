@@ -1,6 +1,3 @@
-// Groups messages without a stack trace by template: messages with the same
-// length and first token that mostly match share a group, and the tokens
-// that differ become a wildcard.
 import { messageFingerprint } from "./fingerprints.js";
 import { NORMALIZER_VERSION } from "./normalize-message.js";
 
@@ -8,21 +5,20 @@ export const PREFIX_TOKEN_COUNT = 1;
 export const SIMILARITY_THRESHOLD = 0.7;
 export const WILDCARD = "<*>";
 
-// Stored as JSON in the database (miner_state), so field names stay as they are.
 export interface MinerGroup {
   fingerprint: string;
   service: string;
-  tokens: string[]; // the template, split on whitespace
+  tokens: string[];
 }
 
 export interface MinerState {
-  version: number; // NORMALIZER_VERSION the groups were made with
+  version: number;
   groups: MinerGroup[];
 }
 
 export interface Miner {
   groups: MinerGroup[];
-  tree: Map<string, MinerGroup[]>; // "service \0 length \0 prefix" -> groups
+  tree: Map<string, MinerGroup[]>;
   byFingerprint: Map<string, MinerGroup>;
 }
 
@@ -38,8 +34,6 @@ function treeKey(service: string, tokens: string[]): string {
   return [service, String(tokens.length), ...tokens.slice(0, PREFIX_TOKEN_COUNT)].join("\0");
 }
 
-// State saved with another normalizer version is dropped: its templates
-// were made from differently normalized messages.
 export function importState(state: MinerState): Miner {
   const miner: Miner = { groups: [], tree: new Map(), byFingerprint: new Map() };
   if (state.version !== NORMALIZER_VERSION) return miner;
@@ -63,7 +57,6 @@ function addGroup(miner: Miner, group: MinerGroup): void {
   else miner.tree.set(key, [group]);
 }
 
-// The share of positions where the template and the message have the same token.
 function similarity(template: string[], tokens: string[]): number {
   let matchingTokenCount = 0;
   for (let position = 0; position < tokens.length; position++) if (template[position] === tokens[position]) matchingTokenCount++;

@@ -1,8 +1,3 @@
-// Turns the report object into text for a terminal. Pure.
-//
-// Plain ASCII only: anything else in log-derived text (including control
-// characters, which could rewrite the terminal) becomes "?". Color codes
-// are added only when the caller says the output is a terminal.
 import type { Suspect } from "../suspect-attribution/suspect-types.js";
 import type { DeliveryMetrics, Report, ReportRegression, ServiceReport } from "./report-types.js";
 
@@ -15,7 +10,6 @@ type ColorName = Exclude<keyof typeof COLOR_CODES, "reset">;
 
 const SHORT_SHA_LENGTH = 7;
 
-// Printable ASCII only (space to "~").
 function toPlainAscii(text: string): string {
   return text.replace(/[^\x20-\x7e]/g, "?");
 }

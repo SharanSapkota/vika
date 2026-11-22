@@ -1,14 +1,4 @@
-// Who may talk to the dashboard. Pure.
-//
-// The server listens on 127.0.0.1, but a web page open in the same browser
-// could still send requests to it. So:
-//   - Host must be localhost or 127.0.0.1 on our port, for EVERY request.
-//     This stops "DNS rebinding", where an attacker's domain is pointed at
-//     127.0.0.1 to read the page.
-//   - Origin, when the browser sends one, must be our own page.
-//   - Anything that changes something (POST) needs the token handed to our
-//     own page when it was served. Other sites can't read our page, so they
-//     can't know it.
+
 import { timingSafeEqual } from "node:crypto";
 
 export const TOKEN_HEADER = "x-vika-token";

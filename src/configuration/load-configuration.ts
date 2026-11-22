@@ -1,9 +1,4 @@
-// Finds and loads vika.yaml and the .env next to it, checks both, and
-// returns plain data. No database, no git, nothing is started.
-//
-// All problems found at one stage are reported together in one error:
-// first everything wrong in vika.yaml, then every missing environment
-// variable. Errors never include a secret value.
+
 import { existsSync, readFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { parse as parseYaml } from "yaml";

@@ -1,5 +1,3 @@
-// Replaces the parts of a message that change between occurrences (ids,
-// numbers, IPs, query strings) with placeholders, so they group together.
 import { redactIps } from "../redaction/redact-ip-addresses.js";
 
 export const NORMALIZER_VERSION = 1;

@@ -1,15 +1,3 @@
-// The dashboard: one HTML page with inline CSS and JS. No CDN, no external
-// requests: it only talks to the vika server that served it.
-//
-// Safety: everything shown from the report (which comes from logs and
-// commits, so it can contain things like "<script>") is put on the page as
-// TEXT (textContent), never as HTML. The page uses no innerHTML, outerHTML,
-// insertAdjacentHTML or document.write anywhere. Links from data are only
-// used after checking they are http(s).
-//
-// The per-start token arrives in a <meta> tag; the page sends it back with
-// every POST. The script and styles carry a per-start nonce that the
-// Content-Security-Policy requires, so no other script can run on the page.
 
 const PAGE_STYLE = `
   :root { color-scheme: light dark; --border: #8884; --muted: #888; --bad: #d33; --good: #2a2; }
@@ -36,8 +24,6 @@ const PAGE_STYLE = `
   ul.also { margin: .3rem 0; }
 `;
 
-// Plain JavaScript that runs in the browser. Written without template
-// literals so it can sit inside this TypeScript string unchanged.
 const PAGE_SCRIPT = `
 "use strict";
 var token = document.querySelector('meta[name="vika-token"]').getAttribute("content");
@@ -228,8 +214,6 @@ document.getElementById("refresh").addEventListener("click", load);
 load();
 `;
 
-// The page for one server start. The token and nonce are hex, so they are
-// safe inside HTML attributes as they are.
 export function renderDashboardPage(token: string, nonce: string): string {
   return `<!doctype html>
 <html lang="en">

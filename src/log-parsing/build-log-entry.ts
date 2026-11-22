@@ -1,4 +1,3 @@
-// Turns a first line plus its continuation lines into one redacted LogEntry.
 import { redact } from "../redaction/redact-sensitive-text.js";
 import { ALL_REDACTION_KINDS, type RedactionKind } from "../redaction/redaction-kinds.js";
 import type { Frame, Level, LogEntry } from "./log-entry-types.js";
@@ -8,17 +7,15 @@ export interface EntryDraft {
   timestamp: string;
   level: Level;
   message: string;
-  continuationLines: string[]; // stack trace lines
+  continuationLines: string[];
 }
 
-// Redacts the configured kinds (default: all) in the message and frames.
 export function buildLogEntry(draft: EntryDraft, redactionKinds: readonly RedactionKind[] = ALL_REDACTION_KINDS): LogEntry {
   const frames: Frame[] = [];
   const messageLines = [draft.message.trim()];
   for (const line of draft.continuationLines) {
     const frame = parseFrame(line);
     if (frame) frames.push(frame);
-    // "at ..." lines we can't read (e.g. "at async Promise.all (index 0)") are left out.
     else if (!/^\s*at\s/.test(line) && line.trim() !== "") messageLines.push(line.trim());
   }
   const safeFrames = frames.map((frame) =>

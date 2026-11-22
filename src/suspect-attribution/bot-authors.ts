@@ -1,5 +1,3 @@
-// Recognizes commits written by bots (dependency updaters, CI). Bots are
-// still listed as suspects, but flagged, because a person has to own the fix.
 
 const BOT_MARKERS = ["dependabot", "renovate", "github-actions", "[bot]"];
 

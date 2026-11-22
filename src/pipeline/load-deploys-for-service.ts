@@ -1,17 +1,11 @@
-// Brings a service's deploy timeline up to date and returns it.
-//   "merges": every commit on the service's branch (only those touching
-//             pathPrefix, in a monorepo) is a deploy; read from git
-//             (read-only) and saved. Saving twice is safe.
-//   "marker": deploys come from `vika mark-deploy`; only read what's stored.
-//   others:   not supported yet; say so, use what's stored, don't fail.
 import type { ServiceSettings } from "../configuration/configuration-schema.js";
 import type { Deploy, Store } from "../database/store-types.js";
 import { readMergeDeploys } from "../deploys/read-merge-deploys.js";
 import { recordDeploys } from "../deploys/record-deploys.js";
 
 export interface DeployLoadResult {
-  deploys: Deploy[]; // everything stored for the service, oldest first
-  addedCount: number; // new deploys saved by this run
+  deploys: Deploy[];
+  addedCount: number;
   note: string | null;
 }
 

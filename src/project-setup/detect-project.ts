@@ -1,7 +1,3 @@
-// What `vika init` can learn about a project folder on its own: is it a git
-// repo, what is the default branch, where are the logs, and what format are
-// they in. The readers (git, folder listing, file sampling) are passed in,
-// so tests can point them at temp folders.
 import { readdirSync, statSync } from "node:fs";
 import { open } from "node:fs/promises";
 import { basename, join } from "node:path";
@@ -16,7 +12,7 @@ export interface LogFileCandidate {
 
 export interface DetectionReaders {
   runGit: (directory: string, gitArguments: string[]) => Promise<{ exitCode: number; stdout: string }>;
-  listLogFiles: (folder: string) => LogFileCandidate[]; // *.log files in the folder; none if it doesn't exist
+  listLogFiles: (folder: string) => LogFileCandidate[];
   readFirstLines: (filePath: string, lineCount: number) => Promise<string[]>;
 }
 
@@ -24,9 +20,9 @@ export interface ProjectDetection {
   directory: string;
   serviceName: string;
   isGitRepo: boolean;
-  defaultBranch: string | null; // null: not detected
-  logFiles: LogFileCandidate[]; // newest first
-  logFormat: LogFormat | null; // null: no log found, or no line recognized
+  defaultBranch: string | null;
+  logFiles: LogFileCandidate[];
+  logFormat: LogFormat | null;
 }
 
 const SAMPLE_LINE_COUNT = 50;
@@ -42,7 +38,7 @@ export const defaultDetectionReaders: DetectionReaders = {
         .filter((filePath) => statSync(filePath).isFile())
         .map((filePath) => ({ path: filePath, modifiedMs: statSync(filePath).mtimeMs }));
     } catch {
-      return []; // the folder doesn't exist or can't be read
+      return [];
     }
   },
   async readFirstLines(filePath, lineCount) {
@@ -57,12 +53,10 @@ export const defaultDetectionReaders: DetectionReaders = {
   },
 };
 
-// Where logs usually are: ./logs and /var/log/<folder name>.
 export function defaultLogFolders(directory: string): string[] {
   return [join(directory, "logs"), join("/var/log", basename(directory))];
 }
 
-// A service name from the folder name: lowercase letters, digits and dashes.
 export function makeServiceName(directory: string): string {
   const serviceName = basename(directory)
     .toLowerCase()
@@ -73,7 +67,6 @@ export function makeServiceName(directory: string): string {
 }
 
 async function detectDefaultBranch(readers: DetectionReaders, directory: string): Promise<string | null> {
-  // The remote's default branch ("origin/main"), else the branch checked out.
   const remoteDefault = await readers.runGit(directory, ["symbolic-ref", "--quiet", "--short", "refs/remotes/origin/HEAD"]);
   if (remoteDefault.exitCode === 0 && remoteDefault.stdout.trim() !== "") return remoteDefault.stdout.trim().replace(/^origin\//, "");
   const currentBranch = await readers.runGit(directory, ["symbolic-ref", "--quiet", "--short", "HEAD"]);

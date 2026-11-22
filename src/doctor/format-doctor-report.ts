@@ -1,5 +1,3 @@
-// Doctor's checks as terminal text, one line each, with the fix under it.
-// Pure; plain ASCII.
 import type { DoctorCheck } from "./doctor-check-types.js";
 
 export function formatDoctorReport(checks: DoctorCheck[]): string {
