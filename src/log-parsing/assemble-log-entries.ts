@@ -14,8 +14,8 @@ export function assembleLogEntries(
   const entries: LogEntry[] = [];
   let skipped = 0;
   let currentEntry: EntryDraft | "ignored" | null = null;
-  // Lines under an ignored entry (such as an INFO line) are swallowed, but
-  // they are still kept here so the continuation rule knows where it is.
+  
+  
   let ignoredEntryLines: string[] = [];
 
   for (const rawLine of lines) {

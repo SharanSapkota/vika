@@ -11,8 +11,8 @@ const STARTS_WITH_TIME = new RegExp(`^${TIMESTAMP}(?=\\s|$)`, "i");
 const TEXT_LOG_LINE = new RegExp(`^(${TIMESTAMP})\\s+\\[?([A-Za-z]+)\\]?:?(?:\\s+(.*))?$`, "i");
 
 export function readTextStart(line: string): LineStart {
-  // The Python shapes are tried only when the original shape does not match,
-  // so every line read before is read exactly as before.
+  
+  
   if (!STARTS_WITH_TIME.test(line)) return readPythonShapeStart(line);
   const lineMatch = TEXT_LOG_LINE.exec(line);
   const timestamp = lineMatch?.[1] ? toIso(lineMatch[1]) : undefined;

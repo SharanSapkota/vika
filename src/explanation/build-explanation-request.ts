@@ -1,11 +1,11 @@
-// PURE. Turns one regression and its top suspects into the exact message
-// text that `vika report --explain` would send to the AI.
-//
-// What goes in: the exception type, the redacted headline, the top stack
-// frames (file, line, function), and for each of the top 3 suspects its
-// commit, PR number, evidence, reason and a diff limited to the files that
-// matter. What never goes in: raw log lines, author names and emails, tokens,
-// IP addresses, or any secret vika knows about.
+
+
+
+
+
+
+
+
 import { hideSecrets } from "../configuration/hide-secrets.js";
 import { redact } from "../redaction/redact-sensitive-text.js";
 import type { RedactionKind } from "../redaction/redaction-kinds.js";
@@ -15,14 +15,14 @@ import { findPossibleSecret } from "./find-possible-secret.js";
 
 export const MAX_SUSPECTS_SENT = 3;
 
-// About 6000 tokens. A token is roughly 4 characters of English or code, so
-// the whole message is kept under this many characters.
+
+
 export const MAX_REQUEST_TOKENS = 6000;
 export const CHARACTERS_PER_TOKEN = 4;
 export const MAX_REQUEST_CHARACTERS = MAX_REQUEST_TOKENS * CHARACTERS_PER_TOKEN;
 
-// Emails, tokens and IPs are never sent, even if vika.yaml's `redact` list
-// leaves one of them out: that list decides what is stored, not what leaves.
+
+
 const ALWAYS_REDACTED_KINDS: readonly RedactionKind[] = ["email", "jwt", "ip"];
 
 function makeTextSafe(text: string, input: Pick<ExplanationRequestInput, "redactionKinds" | "secrets">): string {
@@ -36,11 +36,11 @@ function describeCutLines(lineCount: number): string {
 
 const DIFF_INDENT = "    ";
 
-// Room kept for the "[diff cut: ...]" notes and line breaks between parts.
+
 const SPARE_CHARACTERS = 200;
 
-// Keeps whole lines from the top until the line or character limit is hit,
-// and says how many lines were cut.
+
+
 function cutDiff(diffLines: string[], maxLines: number, maxCharacters: number): string[] {
   const keptLines: string[] = [];
   let usedCharacters = 0;
@@ -64,12 +64,12 @@ function describeSuspectHeader(suspect: Suspect, suspectNumber: number): string[
   ];
 }
 
-// The diff text that may be sent for one suspect, or why it is left out.
+
 function chooseDiffText(suspectDiff: SuspectDiff | undefined): { diffText: string | null; leftOutReason: string | null } {
   if (suspectDiff === undefined) return { diffText: null, leftOutReason: "not read" };
   if (suspectDiff.diffText === null) return { diffText: null, leftOutReason: suspectDiff.problem ?? "not read" };
   if (suspectDiff.diffText.trim() === "") return { diffText: null, leftOutReason: "no changes in these files" };
-  // Checked on the raw text, before anything is masked.
+  
   const possibleSecret = findPossibleSecret(suspectDiff.diffText);
   if (possibleSecret !== null) return { diffText: null, leftOutReason: `possible secret (${possibleSecret})` };
   return { diffText: suspectDiff.diffText, leftOutReason: null };
@@ -95,8 +95,8 @@ export function buildExplanationRequest(input: ExplanationRequestInput): Explana
         )),
   ];
 
-  // Each suspect: its header, then (if allowed) its diff. Diffs are cut to
-  // maxDiffLines first; the character budget is applied below.
+  
+  
   const suspectSections = suspects.map((suspect, suspectIndex) => {
     const headerLines = describeSuspectHeader(suspect, suspectIndex + 1).map(safe);
     const { diffText, leftOutReason } = chooseDiffText(input.suspectDiffs.find((suspectDiff) => suspectDiff.commitSha === suspect.commitSha));
@@ -116,8 +116,8 @@ export function buildExplanationRequest(input: ExplanationRequestInput): Explana
   ];
   const fixedCharacters = [...introductionLines, ...suspectSections.flatMap((section) => ["", ...section.headerLines])].join("\n").length;
 
-  // Share the characters left over between the diffs, in ranking order; a
-  // short diff leaves its unused share to the ones after it.
+  
+  
   let remainingCharacters = Math.max(0, MAX_REQUEST_CHARACTERS - fixedCharacters - SPARE_CHARACTERS);
   let diffsLeft = suspectSections.filter((section) => section.diffLines.length > 0).length;
   const sectionLines = suspectSections.flatMap((section) => {

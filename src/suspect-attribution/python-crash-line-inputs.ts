@@ -10,11 +10,11 @@ const KEYWORDS = new Set([
   "not", "or", "pass", "raise", "return", "try", "while", "with", "yield", "self", "cls",
 ]);
 
-// A name that is not an attribute (so `user` in `user.email`, not `email`).
+
 const IDENTIFIER = /(?<![\w.])[A-Za-z_]\w*/g;
-// `name(`, `module.name(` or `self.name(`: calls vika can follow one step.
+
 const CALLED_NAME = /(?<![\w.])([A-Za-z_]\w*(?:\.[A-Za-z_]\w*)?)\s*\(/g;
-// `x = ...`, `x: Type = ...` and `a, b = ...` (not `==`).
+
 const ASSIGNMENT = /^\s*([A-Za-z_]\w*(?:\s*,\s*[A-Za-z_]\w*)*)\s*(?::[^=]*)?=(?!=)\s*(.*)$/;
 const DIRECT_CALL_START = /^(?:await\s+)?([A-Za-z_]\w*(?:\.[A-Za-z_]\w*)?)\s*\(/;
 
@@ -35,9 +35,9 @@ function findReadNames(code: string): Set<string> {
   return readNames;
 }
 
-// The Python version of findCrashLineInputs: the lines above the crash line
-// (inside the same function) that set a name the crash line reads, and the
-// functions whose result it reads. One step only, like JavaScript.
+
+
+
 export function findPythonCrashLineInputs(fileContent: string, crashLineNumber: number, functionName: string | undefined): CrashLineInputs {
   const fileLines = fileContent.split("\n");
   const crashIndex = crashLineNumber - 1;

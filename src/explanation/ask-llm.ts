@@ -1,21 +1,21 @@
-// THE only place that talks to the AI provider (Anthropic's Messages API).
-//
-// - fetch is passed in, so tests never touch the network.
-// - One request, a 30 second timeout, and no automatic retries.
-// - Every failure becomes one plain-English message. The API key is sent
-//   only in the x-api-key header and is masked out of every message.
-// - Never throws: it returns { answerText } or { message }.
+
+
+
+
+
+
+
 import { hideSecrets } from "../configuration/hide-secrets.js";
 import type { FetchFunction } from "../ticket-trackers/tracker-types.js";
 
 export const ANTHROPIC_MESSAGES_URL = "https://api.anthropic.com/v1/messages";
 export const ANTHROPIC_API_VERSION = "2026-10-21";
 export const LLM_TIMEOUT_MS = 30_000;
-// The answer is meant to be under 120 words (about 200 tokens). Current
-// models also think before answering, and that thinking counts against this
-// limit, so there is room for both.
+
+
+
 export const MAX_ANSWER_TOKENS = 1024;
-// Little thinking is needed to pick one of three listed commits.
+
 export const ANSWER_EFFORT = "low";
 
 const MAX_DETAIL_LENGTH = 200;
@@ -26,7 +26,7 @@ export interface AskLlmRequest {
   promptText: string;
   apiKey: string;
   fetchFunction: FetchFunction;
-  secrets: string[]; // masked out of any message, with the API key
+  secrets: string[]; 
   timeoutMs?: number;
 }
 
@@ -37,13 +37,13 @@ interface MessagesResponse {
   stop_reason?: string | null;
 }
 
-// The provider's own short error text, if it sent one, with secrets masked.
+
 function readErrorDetail(responseText: string, secrets: string[]): string {
   let detail = "";
   try {
     detail = (JSON.parse(responseText) as { error?: { message?: string } }).error?.message ?? "";
   } catch {
-    // not JSON: leave the detail out
+    
   }
   detail = hideSecrets(detail.replace(/\s+/g, " ").trim(), secrets);
   if (detail === "") return "";

@@ -4,8 +4,8 @@ import { DEFAULT_LANGUAGE, type Language } from "./languages.js";
 import { FORMAT_PARSERS } from "./line-readers.js";
 import type { LogFormat, ParseResult } from "./log-entry-types.js";
 
-// `format` undefined means "guess it from the first 200 lines". The language
-// only decides how stack traces are attached and read.
+
+
 export function parseLines(
   lines: string[],
   format?: LogFormat,

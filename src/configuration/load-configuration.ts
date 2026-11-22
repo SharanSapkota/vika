@@ -15,40 +15,40 @@ export type TrackerCredentials =
   | { type: "linear"; apiKey: string }
   | { type: "none" };
 
-// The optional AI step. isEnabled only ALLOWS `vika report --explain`; a
-// person must still pass the flag and approve each request.
+
+
 export interface ExplainConfiguration {
   isEnabled: boolean;
   provider: ExplainProvider;
   model: string;
   maxDiffLines: number;
-  // From ANTHROPIC_API_KEY, read only when isEnabled is true. null when it is
-  // off or the variable is missing (doctor FAILs on that; --explain stops).
+  
+  
   apiKey: string | null;
 }
 
 export interface LoadedConfiguration {
-  services: Record<string, ServiceSettings>; // repo paths are absolute
+  services: Record<string, ServiceSettings>; 
   tracker: TrackerSettings;
   redact: RedactionKind[];
   databaseUrl: string;
   trackerCredentials: TrackerCredentials;
-  // Where `vika run` posts new regressions; null when vika.yaml has no webhook.
-  // The signing secret comes from VIKA_WEBHOOK_SECRET (optional).
+  
+  
   webhook: { url: string; secret: string | null } | null;
   explain: ExplainConfiguration;
   configurationFilePath: string;
-  warnings: string[]; // advice that doesn't stop vika from running
+  warnings: string[]; 
 }
 
 export interface LoadConfigurationOptions {
   workingDirectory: string;
-  configurationPath?: string; // default: vika.yaml in workingDirectory
-  // The real environment; tests pass their own. Default: process.env.
+  configurationPath?: string; 
+  
   environment?: Record<string, string | undefined>;
 }
 
-// Where each tracker's secrets come from.
+
 const TRACKER_VARIABLES = {
   jira: ["JIRA_BASE_URL", "JIRA_EMAIL", "JIRA_API_TOKEN"],
   linear: ["LINEAR_API_KEY"],
@@ -63,8 +63,8 @@ function readYamlFile(configurationFilePath: string): unknown {
     throw new ConfigurationError(`Cannot read ${configurationFilePath}:`, [(error as Error).message]);
   }
   try {
-    // An empty file parses as null; treat it as an empty map so the
-    // message is "services is missing".
+    
+    
     return parseYaml(fileText) ?? {};
   } catch (error) {
     throw new ConfigurationError(`${configurationFilePath} is not valid YAML:`, [(error as Error).message]);
@@ -82,20 +82,20 @@ export function loadConfiguration(options: LoadConfigurationOptions): LoadedConf
   }
   const configurationDirectory = dirname(configurationFilePath);
 
-  // 1. vika.yaml
+  
   const parseResult = vikaYamlSchema.safeParse(readYamlFile(configurationFilePath), { reportInput: true });
   if (!parseResult.success) {
     throw new ConfigurationError(`Problems in ${configurationFilePath}:`, describeSchemaIssues(parseResult.error.issues));
   }
   const vikaYaml = parseResult.data;
 
-  // Relative repo paths mean "relative to vika.yaml", not to wherever vika was started.
+  
   const services: Record<string, ServiceSettings> = {};
   for (const [serviceName, serviceSettings] of Object.entries(vikaYaml.services)) {
     services[serviceName] = { ...serviceSettings, repo: resolve(configurationDirectory, serviceSettings.repo) };
   }
 
-  // 2. The environment: the real one wins over .env.
+  
   const environment = mergeEnvironment(
     options.environment ?? process.env,
     readEnvironmentFile(join(configurationDirectory, ENVIRONMENT_FILE_NAME)),
@@ -141,7 +141,7 @@ export function loadConfiguration(options: LoadConfigurationOptions): LoadedConf
       provider: vikaYaml.explain.provider,
       model: vikaYaml.explain.model,
       maxDiffLines: vikaYaml.explain.maxDiffLines,
-      // With explanations off, the key is never even read.
+      
       apiKey: vikaYaml.explain.enabled ? (readVariable("ANTHROPIC_API_KEY") ?? null) : null,
     },
     configurationFilePath,

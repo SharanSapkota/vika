@@ -1,5 +1,5 @@
-// Plain-English sentences for who got a ticket and what happened when vika
-// tried to file it. Shown in the terminal approval and on the dashboard. Pure.
+
+
 import type { CreateTicketOutcome } from "./create-ticket.js";
 import type { SuggestedAssignee } from "./ticket-types.js";
 

@@ -1,7 +1,7 @@
-// `vika report --create-tickets`: after the report, turn each bad deploy into
-// a ticket draft, ask a person to approve each one, and file the approved
-// ones. Only this command ever talks to a tracker; `report` without the
-// flag makes no tracker calls at all.
+
+
+
+
 import { collectSecrets, runWithSecretsHidden } from "../configuration/hide-secrets.js";
 import type { LoadedConfiguration } from "../configuration/load-configuration.js";
 import { openStore } from "../database/database-store.js";

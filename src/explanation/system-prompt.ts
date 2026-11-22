@@ -1,5 +1,5 @@
-// The fixed instructions sent with every explanation request. Kept short and
-// strict: the AI's answer is only an opinion next to vika's own ranking.
+
+
 export const EXPLANATION_SYSTEM_PROMPT = [
   "You help an engineer decide which commit most likely caused an error that started after a deploy.",
   "Answer in plain English.",

@@ -10,8 +10,8 @@ export function parseFrame(line: string): Frame | undefined {
   return { file: frameMatch[4] as string, line: Number(frameMatch[5]) };
 }
 
-// Reads a JavaScript stack trace: "at" lines are frames, any other non-empty
-// line (such as "TypeError: ...") is part of the message.
+
+
 export function readJavascriptStackTrace(stackTraceLines: string[]): StackTraceReading {
   const frames: Frame[] = [];
   const messageLines: string[] = [];

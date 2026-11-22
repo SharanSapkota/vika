@@ -1,10 +1,10 @@
-// One ticket draft for one bad deploy. Pure.
-//
-// All medium and high regressions of the deploy go into ONE draft (one bad
-// deploy, one ticket); low ones are only counted. Suspects from all the
-// groups are merged by commit: the strongest one is shown in full, the
-// others (up to 5 suspects in total) under "Also changed in this deploy".
-// Only stored, redacted examples ever go into the text, never raw log lines.
+
+
+
+
+
+
+
 import type { StoredCluster } from "../database/store-types.js";
 import type { ReportRegression } from "../reporting/report-types.js";
 import type { Confidence, Suspect } from "../suspect-attribution/suspect-types.js";
@@ -22,8 +22,8 @@ const MAX_EXAMPLE_LENGTH = 300;
 const CONFIDENCE_ORDER: Record<Confidence, number> = { high: 0, medium: 1, low: 2 };
 const SEVERITY_ORDER = { high: 0, medium: 1, low: 2 } as const;
 
-// The label that marks every ticket for one deploy. Also how a ticket is
-// found again in the tracker if vika's own database was wiped.
+
+
 export function makeDeployLabel(deploySha: string): string {
   return `deploy-${deploySha.slice(0, LABEL_SHA_LENGTH)}`;
 }
@@ -32,9 +32,9 @@ export interface TicketDraftInput {
   serviceName: string;
   deploySha: string;
   deployTime: string | null;
-  regressions: ReportRegression[]; // every regression the detector put on this deploy
-  clusters: StoredCluster[]; // for examples, log sources and last seen
-  codeOwners: CodeOwners; // owners of the top suspect's file
+  regressions: ReportRegression[]; 
+  clusters: StoredCluster[]; 
+  codeOwners: CodeOwners; 
 }
 
 const isListed = (regression: ReportRegression) => regression.severity !== "low";
@@ -49,8 +49,8 @@ function sortGroups(regressions: ReportRegression[]): ReportRegression[] {
   );
 }
 
-// The suspects of the listed groups, one per commit, strongest first.
-// Within the same confidence, the order of the groups (worst first) decides.
+
+
 export function rankDraftSuspects(regressions: ReportRegression[]): Suspect[] {
   const suspectsByCommit = new Map<string, Suspect>();
   for (const regression of sortGroups(regressions.filter(isListed))) {
@@ -61,7 +61,7 @@ export function rankDraftSuspects(regressions: ReportRegression[]): Suspect[] {
       }
     }
   }
-  // Array.sort is stable, so equal confidences keep the group order above.
+  
   return [...suspectsByCommit.values()].sort((left, right) => CONFIDENCE_ORDER[left.confidence] - CONFIDENCE_ORDER[right.confidence]);
 }
 
@@ -74,7 +74,7 @@ function describePullRequest(suspect: Suspect): string {
   return suspect.prNumber === null ? `commit ${suspect.commitSha}` : `PR #${suspect.prNumber}, commit ${suspect.commitSha}`;
 }
 
-// The text of the "Assignment" section for a given assignee.
+
 export function describeAssignment(assignee: SuggestedAssignee, facts: AssignmentFacts): BodySection {
   const lines: string[] = [];
   const author = facts.topSuspect?.author;
@@ -91,7 +91,7 @@ export function describeAssignment(assignee: SuggestedAssignee, facts: Assignmen
   return { heading: ASSIGNMENT_HEADING, lines };
 }
 
-// The draft with a final assignee, and the description to match.
+
 export function applyAssignee(draft: TicketDraft, assignee: SuggestedAssignee): TicketDraft {
   return {
     ...draft,
@@ -122,7 +122,7 @@ function writeGroupSection(regression: ReportRegression, cluster: StoredCluster 
   return { heading: `Error group ${regression.fingerprint}: ${regression.headline}`, lines };
 }
 
-// Undefined when the deploy has no medium or high regression: no ticket.
+
 export function buildTicketDraft(input: TicketDraftInput): TicketDraft | undefined {
   const listedRegressions = sortGroups(input.regressions.filter(isListed));
   if (listedRegressions.length === 0) return undefined;
@@ -172,8 +172,8 @@ export function buildTicketDraft(input: TicketDraftInput): TicketDraft | undefin
   listedRegressions.forEach((regression, groupIndex) => sections.push(writeGroupSection(regression, listedClusters[groupIndex])));
 
   const assignmentFacts: AssignmentFacts = { topSuspect, codeOwners: input.codeOwners };
-  // Before the tracker is asked, suggest as if every email were a tracker
-  // user; create-ticket makes the final choice.
+  
+  
   const suggestedAssignee = chooseAssignee({ topSuspect, codeOwnerEmails: input.codeOwners.emails, isTrackerUser: () => true });
   sections.push(describeAssignment(suggestedAssignee, assignmentFacts));
   sections.push({

@@ -5,7 +5,7 @@ import { REDACTION_KINDS } from "../redaction/redaction-kinds.js";
 
 export const SERVICE_NAME_PATTERN = /^[a-z0-9-]+$/;
 export const DEPLOY_SOURCES = ["merges", "marker", "logs-version", "github"] as const;
-// "auto" guesses the format from the first 200 lines; the others skip guessing.
+
 export const LOG_FORMAT_SETTINGS = ["auto", ...LOG_FORMATS] as const;
 
 const listAllowed = (values: readonly string[]) => values.map((value) => `"${value}"`).join(", ");
@@ -18,15 +18,15 @@ const logsSchema = z.union([requiredText(), z.strictObject({ command: requiredTe
 
 const serviceSchema = z.strictObject(
   {
-    repo: requiredText(), // path to the git checkout
+    repo: requiredText(), 
     logs: logsSchema,
     pathMap: z.record(z.string(), z.string({ error: "must be text" }), { error: "must be a map of prefix: prefix" }).optional(),
     branch: requiredText().default("main"),
-    pathPrefix: requiredText().optional(), // monorepo: the service lives under this folder
+    pathPrefix: requiredText().optional(), 
     deploys: z
       .strictObject({ source: z.enum(DEPLOY_SOURCES) }, { error: "must be { source: ... }" })
       .default(() => ({ source: "merges" as const })),
-    // Decides how stack traces are read and how suspect code is read.
+    
     language: z.enum(LANGUAGES, { error: `must be one of ${listAllowed(LANGUAGES)}` }).default("javascript"),
     logFormat: z.enum(LOG_FORMAT_SETTINGS, { error: `must be one of ${listAllowed(LOG_FORMAT_SETTINGS)}` }).default("auto"),
   },
@@ -45,8 +45,8 @@ const trackerSchema = z
   )
   .default(() => ({ type: "none" as const }));
 
-// Plain http would send regressions (and the signature) in the clear, so
-// only https is allowed, except to this computer itself.
+
+
 const LOCAL_HOSTS = new Set(["localhost", "127.0.0.1", "[::1]"]);
 
 const webhookSchema = z.strictObject(
@@ -69,9 +69,9 @@ const webhookSchema = z.strictObject(
   { error: "must be { url: ... }" },
 );
 
-// The optional AI step (`vika report --explain`). Off unless vika.yaml turns
-// it on, and even then a person must pass --explain and approve each request.
-// The API key is never written here: it lives only in .env.
+
+
+
 export const EXPLAIN_PROVIDERS = ["anthropic"] as const;
 export const DEFAULT_EXPLAIN_MODEL = "claude-sonnet-5-5";
 export const DEFAULT_MAX_DIFF_LINES = 200;

@@ -62,8 +62,8 @@ export const reportDeploySchema = z.strictObject({
   isFailed: z.boolean(),
 });
 
-// The optional AI opinion from `vika report --explain`. Never part of the
-// ranking: the suspects list above it is exactly what vika's rules chose.
+
+
 export const explanationSchema = z.strictObject({
   model: z.string(),
   answerText: z.string(),
@@ -85,8 +85,8 @@ export const reportRegressionSchema = z.strictObject({
   restoredAt: isoTimestamp.nullable(),
   suspects: z.array(suspectSchema),
   suspectMessage: z.string().nullable(),
-  // Present only when --explain ran: the answer, or null when nothing was
-  // sent or the request failed. Absent otherwise.
+  
+  
   explanation: explanationSchema.nullable().optional(),
 });
 

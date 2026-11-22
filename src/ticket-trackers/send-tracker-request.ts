@@ -1,11 +1,11 @@
-// Sends one HTTP request to a tracker and turns every failure into a
-// plain-English TrackerError. Shared by the Jira and Linear clients.
-//
-// - Every request has a timeout.
-// - Nothing is retried, ever: a retried "create issue" whose first attempt
-//   actually succeeded would file a duplicate ticket.
-// - Error messages never contain the token. The request headers are never
-//   echoed, and any text from the tracker is masked with the known secrets.
+
+
+
+
+
+
+
+
 import { hideSecrets } from "../configuration/hide-secrets.js";
 import type { FetchFunction } from "./tracker-types.js";
 
@@ -20,20 +20,20 @@ export class TrackerError extends Error {
 }
 
 export interface TrackerRequest {
-  trackerName: string; // "Jira", "Linear": used in messages
-  credentialsHint: string; // which settings to check on 401/403
+  trackerName: string; 
+  credentialsHint: string; 
   fetchFunction: FetchFunction;
   url: string;
   method: "GET" | "POST";
   headers: Record<string, string>;
-  body?: unknown; // sent as JSON
+  body?: unknown; 
   timeoutMs: number;
-  secrets: string[]; // masked out of any text the tracker sends back
+  secrets: string[]; 
 }
 
 const MAX_DETAIL_LENGTH = 200;
 
-// A short, masked piece of the tracker's own error text, if it has one.
+
 function summarizeErrorBody(responseText: string, secrets: string[]): string {
   let detail = responseText;
   try {
@@ -46,7 +46,7 @@ function summarizeErrorBody(responseText: string, secrets: string[]): string {
     ].filter((message) => message !== "");
     if (messages.length > 0) detail = messages.join("; ");
   } catch {
-    // not JSON: use the text as it is
+    
   }
   detail = hideSecrets(detail.replace(/\s+/g, " ").trim(), secrets);
   if (detail === "") return "";

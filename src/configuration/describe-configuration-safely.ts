@@ -20,7 +20,7 @@ export function describeConfigurationSafely(configuration: LoadedConfiguration):
     ...configuration,
     databaseUrl: maskDatabaseUrl(configuration.databaseUrl),
     trackerCredentials,
-    // The URL can carry a token too (many webhook URLs do), so show only its host.
+    
     webhook:
       configuration.webhook === null
         ? null

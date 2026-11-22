@@ -1,6 +1,6 @@
-// Jira Cloud (REST API v3). Basic auth with JIRA_EMAIL and JIRA_API_TOKEN;
-// descriptions and comments in ADF. Issues go into the project from
-// vika.yaml (tracker.project), with tracker.issueType (default "Bug").
+
+
+
 import { sectionsToAdf, textToAdf } from "./jira-document.js";
 import { sendTrackerRequest, TrackerError } from "./send-tracker-request.js";
 import { TRACKER_TIMEOUT_MS, type FetchFunction, type TicketTracker, type TrackerIssue } from "./tracker-types.js";
@@ -8,11 +8,11 @@ import { TRACKER_TIMEOUT_MS, type FetchFunction, type TicketTracker, type Tracke
 export const DEFAULT_JIRA_ISSUE_TYPE = "Bug";
 
 export interface JiraTrackerOptions {
-  baseUrl: string; // JIRA_BASE_URL, e.g. https://example.atlassian.net
-  email: string; // JIRA_EMAIL
-  apiToken: string; // JIRA_API_TOKEN
-  projectKey: string; // tracker.project
-  issueType?: string; // tracker.issueType, default "Bug"
+  baseUrl: string; 
+  email: string; 
+  apiToken: string; 
+  projectKey: string; 
+  issueType?: string; 
   fetchFunction: FetchFunction;
   timeoutMs?: number;
   secrets: string[];
@@ -47,8 +47,8 @@ export function createJiraTracker(options: JiraTrackerOptions): TicketTracker {
 
     async findUserByEmail(email) {
       const users = (await send("GET", `/rest/api/3/user/search?query=${encodeURIComponent(email)}`)) as JiraUser[];
-      // Real people only (not apps). Jira may hide email addresses for
-      // privacy; then a single match on the query is taken as the person.
+      
+      
       const people = (Array.isArray(users) ? users : []).filter((user) => user.accountType === undefined || user.accountType === "atlassian");
       const exactMatch = people.find((user) => user.emailAddress?.toLowerCase() === email.toLowerCase());
       const match = exactMatch ?? (people.length === 1 && people[0]!.emailAddress === undefined ? people[0] : undefined);
@@ -80,7 +80,7 @@ export function createJiraTracker(options: JiraTrackerOptions): TicketTracker {
     },
 
     async findIssueByLabel(label): Promise<TrackerIssue | undefined> {
-      // Labels never contain quotes (they are built by vika), but escape anyway.
+      
       const jql = `project = "${options.projectKey.replace(/"/g, '\\"')}" AND labels = "${label.replace(/"/g, '\\"')}" ORDER BY created ASC`;
       const found = (await send("POST", "/rest/api/3/search/jql", { jql, fields: ["key"], maxResults: 1 })) as { issues?: { key: string }[] };
       const issueKey = found.issues?.[0]?.key;

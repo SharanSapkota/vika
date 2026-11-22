@@ -14,8 +14,8 @@ export interface LogEntry {
   frames: Frame[];
   file?: string;
   lineNumber?: number;
-  // Set only when the stack-trace reader knows the exception's name for sure
-  // (Python tracebacks). Otherwise grouping reads it from the message.
+  
+  
   exceptionType?: string;
 }
 

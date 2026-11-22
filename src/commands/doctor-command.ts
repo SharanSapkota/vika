@@ -1,6 +1,6 @@
-// `vika doctor`: checks everything vika depends on and says, in plain
-// English, what to fix. Read-only: it never migrates, writes or files
-// anything (a log command is run once). Exit code 1 if anything FAILs.
+
+
+
 import { dirname } from "node:path";
 import { collectSecrets, hideSecrets } from "../configuration/hide-secrets.js";
 import type { LoadConfigurationOptions } from "../configuration/load-configuration.js";
@@ -27,7 +27,7 @@ export interface DoctorCommandOptions extends LoadConfigurationOptions {
 
 export interface DoctorCommandResult {
   checks: DoctorCheck[];
-  exitCode: number; // 1 if any check FAILed
+  exitCode: number; 
 }
 
 export async function runDoctorCommand(options: DoctorCommandOptions): Promise<DoctorCommandResult> {
@@ -73,7 +73,7 @@ export async function runDoctorCommand(options: DoctorCommandOptions): Promise<D
   checks.push(...checkWebhook(configuration.webhook));
   checks.push(...checkExplanation(configuration.explain));
 
-  // Belt and braces: no check message or fix ever shows a secret.
+  
   const maskedChecks = checks.map((check) => ({
     ...check,
     message: hideSecrets(check.message, secrets),

@@ -7,7 +7,7 @@ export interface GuardInput {
   method: string;
   host: string | undefined;
   origin: string | undefined;
-  token: string | undefined; // the X-Vika-Token header
+  token: string | undefined; 
   serverPort: number;
   expectedToken: string;
 }

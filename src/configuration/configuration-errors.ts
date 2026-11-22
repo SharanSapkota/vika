@@ -28,7 +28,7 @@ export function describeSchemaIssues(issues: z.core.$ZodIssue[]): string[] {
     if (issue.code === "invalid_key") {
       return [`service name "${String(issue.input)}" is not allowed: use lowercase letters, digits and dashes only`];
     }
-    // A setting that isn't there at all.
+    
     if ((issue.code === "invalid_type" || issue.code === "invalid_union") && issue.input === undefined) {
       return [`${settingName} is missing`];
     }
@@ -36,7 +36,7 @@ export function describeSchemaIssues(issues: z.core.$ZodIssue[]): string[] {
       const choices = issue.values.map((value) => `"${String(value)}"`).join(", ");
       return [`${settingName} must be one of ${choices} (got "${String(issue.input)}")`];
     }
-    // Every other message comes from the schema and reads after the name.
+    
     return [`${settingName} ${issue.message}`];
   });
 }

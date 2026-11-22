@@ -1,12 +1,12 @@
-// Who owns a file, according to the repo's CODEOWNERS at the deployed sha.
-//
-// Reading is read-only git (git show, through readFileAtCommit). The
-// matcher is pure and follows GitHub's rules: patterns work like
-// .gitignore, and when several match, the LAST one in the file wins.
+
+
+
+
+
 import { readFileAtCommit } from "../suspect-attribution/git-blame-reader.js";
 import type { CodeOwners } from "./ticket-types.js";
 
-// Where GitHub looks, in the order it looks; the first file found is used.
+
 export const CODE_OWNERS_LOCATIONS = [".github/CODEOWNERS", "CODEOWNERS", "docs/CODEOWNERS"];
 
 export interface CodeOwnersRule {
@@ -15,14 +15,14 @@ export interface CodeOwnersRule {
   owners: string[];
 }
 
-// Turns one CODEOWNERS pattern into a regex over repo-relative paths.
-//   "*.js"        any .js file, at any depth
-//   "/build/"     the build folder at the repo root, and everything in it
-//   "docs/*"      files directly in a docs folder (a "/" inside anchors it to the root)
-//   "apps/**/x"   "**" spans any number of folders
+
+
+
+
+
 function patternToRegex(pattern: string): RegExp {
   let body = pattern;
-  // A "/" at the start or in the middle ties the pattern to the repo root.
+  
   const isAnchored = body.startsWith("/") || body.slice(0, -1).includes("/");
   body = body.replace(/^\//, "");
   const isFolderOnly = body.endsWith("/");
@@ -46,8 +46,8 @@ function patternToRegex(pattern: string): RegExp {
     }
   }
   const prefix = isAnchored ? "^" : "^(?:.*/)?";
-  // A folder pattern covers everything inside; a plain one also matches a
-  // folder of that name (and so everything inside it).
+  
+  
   const suffix = isFolderOnly ? "/.*$" : "(?:/.*)?$";
   return new RegExp(`${prefix}${regexBody}${suffix}`);
 }
@@ -63,8 +63,8 @@ export function parseCodeOwners(fileText: string): CodeOwnersRule[] {
   return rules;
 }
 
-// The owners of one file: the last matching rule wins. A matching rule with
-// no owners means "nobody owns this".
+
+
 export function findCodeOwners(rules: CodeOwnersRule[], filePath: string): CodeOwners {
   const matchingRule = rules.findLast((rule) => rule.matcher.test(filePath));
   const owners = matchingRule?.owners ?? [];
@@ -74,8 +74,8 @@ export function findCodeOwners(rules: CodeOwnersRule[], filePath: string): CodeO
   };
 }
 
-// The rules from the first CODEOWNERS file found at the deployed sha, or
-// none if the repo has no CODEOWNERS.
+
+
 export async function readCodeOwnersRules(repoPath: string, deploySha: string): Promise<CodeOwnersRule[]> {
   for (const location of CODE_OWNERS_LOCATIONS) {
     const fileText = await readFileAtCommit(repoPath, deploySha, location);

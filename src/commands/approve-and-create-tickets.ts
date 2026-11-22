@@ -1,9 +1,9 @@
-// A person approves every ticket before it is filed. For each draft this
-// shows the title, assignee, top suspect and count, then asks:
-//   Create ticket? [y]es / [n]o / [e]dit title
-// "y" files it, "e" asks for a new title and then files it, anything else
-// skips it. Without an interactive terminal nothing is ever filed.
-// Input and output are passed in, so tests can answer the questions.
+
+
+
+
+
+
 import type { CreateTicketOutcome } from "../ticketing/create-ticket.js";
 import { describeAssignee, describeOutcome } from "../ticketing/describe-ticket-outcome.js";
 import type { TicketDraft } from "../ticketing/ticket-types.js";
@@ -11,15 +11,15 @@ import type { TicketDraft } from "../ticketing/ticket-types.js";
 export const APPROVAL_QUESTION = "Create ticket? [y]es / [n]o / [e]dit title ";
 
 export interface ApprovalConsole {
-  isInteractive: boolean; // a person at a terminal who can answer
+  isInteractive: boolean; 
   write: (text: string) => void;
   ask: (question: string) => Promise<string>;
 }
 
 export interface ApprovalResult {
-  draft: TicketDraft; // as filed (with an edited title, if it was edited)
+  draft: TicketDraft; 
   decision: "approved" | "skipped" | "not interactive";
-  outcome: CreateTicketOutcome | null; // null when nothing was filed
+  outcome: CreateTicketOutcome | null; 
 }
 
 
@@ -34,7 +34,7 @@ function describeDraft(draft: TicketDraft, draftNumber: number, draftCount: numb
     "",
     `Ticket draft ${draftNumber} of ${draftCount}`,
     `  Title:       ${draft.title}`,
-    // A suggestion: the tracker confirms it when the ticket is filed.
+    
     `  Assignee:    ${describeAssignee(draft.suggestedAssignee)}`,
     `  Top suspect: ${suspectText}`,
     `  Occurrences: ${draft.totalOccurrences} (log-derived)`,

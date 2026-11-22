@@ -1,6 +1,6 @@
-// For every regression in the report: finds its stack frames, reads its top
-// suspects' diffs (read-only git, passed in) and builds the request text.
-// Nothing is sent here.
+
+
+
 import { collectSecrets } from "../configuration/hide-secrets.js";
 import type { LoadedConfiguration } from "../configuration/load-configuration.js";
 import type { ServiceReportInput } from "../reporting/build-report.js";
@@ -12,14 +12,14 @@ import type { readSuspectDiffs } from "./read-suspect-diffs.js";
 
 export interface PreparedExplanation {
   serviceName: string;
-  regressionIndex: number; // position in that service's regressions
+  regressionIndex: number; 
   request: ExplanationRequest;
 }
 
 export interface PrepareExplanationRequestsInput {
   configuration: LoadedConfiguration;
   report: Report;
-  serviceInputs: ServiceReportInput[]; // holds each error group's stack frames
+  serviceInputs: ServiceReportInput[]; 
   readDiffs: typeof readSuspectDiffs;
 }
 
@@ -32,7 +32,7 @@ export async function prepareExplanationRequests(input: PrepareExplanationReques
     if (serviceSettings === undefined) continue;
     for (const [regressionIndex, regression] of serviceReport.regressions.entries()) {
       const cluster = serviceInput?.clusters.find((candidate) => candidate.fingerprint === regression.fingerprint);
-      // Frames as the repo knows them (pathMap applied), so they match git.
+      
       const topFrames: ExplanationFrame[] = (cluster?.topFrames ?? []).map((frame) => {
         const mappedPath = applyPathMap(frame.file, serviceSettings.pathMap);
         return { filePath: isRepoRelativePath(mappedPath) ? mappedPath : frame.file, lineNumber: frame.line, functionName: frame.fn ?? null };

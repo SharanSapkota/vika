@@ -1,11 +1,11 @@
-// A tiny .env reader. Supports:
-//   KEY=value
-//   KEY="value with spaces and \n escapes"   KEY='literal value'
-//   KEY=value # a comment after a space      # a whole-line comment
-//   blank lines
-// Values already set in the real environment always win: a .env file is a
-// convenience for local runs, never a way to override what the operator set.
-// Error messages give the line number but never the line, which may hold a secret.
+
+
+
+
+
+
+
+
 import { existsSync, readFileSync } from "node:fs";
 import { ConfigurationError } from "./configuration-errors.js";
 
@@ -17,7 +17,7 @@ function readDoubleQuoted(innerText: string): string {
   );
 }
 
-// The index of the quote that closes a double-quoted value; \" doesn't close it.
+
 function findClosingDoubleQuote(value: string): number {
   for (let characterIndex = 1; characterIndex < value.length; characterIndex++) {
     if (value[characterIndex] === "\\") characterIndex++; // skip the escaped character

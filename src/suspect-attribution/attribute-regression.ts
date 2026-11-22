@@ -65,8 +65,8 @@ async function readRepoFrames(input: AttributionInput, deploySha: string, rules:
   return repoFrames;
 }
 
-// The commits in the deploy that changed a named function. undefined means
-// the function could not be found, so the caller decides what to do instead.
+
+
 async function listCommitsChangingNamedFunction(
   repoPath: string,
   previousSha: string,

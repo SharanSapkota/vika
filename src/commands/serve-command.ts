@@ -1,7 +1,7 @@
-// `vika serve`: starts the local dashboard on 127.0.0.1 and keeps it running
-// until stop() (Ctrl+C in the CLI). Opening the store may apply pending
-// migrations to vika's own tables; nothing else is ever written except
-// tickets someone files from the page.
+
+
+
+
 import { collectSecrets, runWithSecretsHidden } from "../configuration/hide-secrets.js";
 import { loadConfiguration, type LoadedConfiguration } from "../configuration/load-configuration.js";
 import { openStore } from "../database/database-store.js";
@@ -21,7 +21,7 @@ export interface ServeCommandOptions {
 export interface RunningServe {
   dashboard: RunningDashboard;
   configuration: LoadedConfiguration;
-  stop(): Promise<void>; // closes the server, then the database pool
+  stop(): Promise<void>; 
 }
 
 export function parsePort(text: string): number {
@@ -56,7 +56,7 @@ export async function runServeCommand(options: ServeCommandOptions): Promise<Run
       };
     } catch (error) {
       await store.close();
-      // The most common reason, said plainly.
+      
       if ((error as NodeJS.ErrnoException).code === "EADDRINUSE") throw new Error(`port ${options.port} is already in use; pick another with --port`);
       throw error;
     }

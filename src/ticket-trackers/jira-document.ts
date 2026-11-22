@@ -1,5 +1,5 @@
-// Jira Cloud's REST v3 wants descriptions and comments in Atlassian Document
-// Format (ADF), not plain text. Pure.
+
+
 import type { BodySection } from "../ticketing/ticket-types.js";
 
 interface AdfTextNode {
@@ -17,10 +17,10 @@ export interface AdfDocument {
   content: AdfNode[];
 }
 
-// ADF refuses empty text nodes.
+
 const toTextNodes = (text: string): AdfTextNode[] => (text === "" ? [] : [{ type: "text", text }]);
 
-// Lines starting with "- " become one bullet list; other lines are paragraphs.
+
 function linesToNodes(lines: string[]): AdfNode[] {
   const nodes: AdfNode[] = [];
   for (const line of lines) {

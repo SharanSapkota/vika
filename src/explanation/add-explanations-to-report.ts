@@ -1,7 +1,7 @@
-// PURE. A copy of the report with an `explanation` on every regression (the
-// AI's answer, or null when nothing was sent or it failed). Nothing else in
-// the report changes: the suspects and their order stay exactly as vika
-// ranked them.
+
+
+
+
 import type { Report } from "../reporting/report-types.js";
 import type { Explanation } from "./explanation-types.js";
 

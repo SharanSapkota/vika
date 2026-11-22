@@ -83,7 +83,7 @@ export function formatTerminalReport(report: Report, options: FormatOptions): st
       lines.push("     Suspects:");
       regression.suspects.forEach((suspect, suspectIndex) => formatSuspect(suspect, suspectIndex + 1));
     }
-    // Only after --explain; kept below the suspects so the ranking reads the same.
+    
     if (regression.explanation !== undefined) {
       lines.push(`     ${AI_OPINION_HEADING}`);
       const answerLines = regression.explanation === null ? ["none (nothing was sent, or the request failed)"] : regression.explanation.answerText.split("\n");
@@ -110,8 +110,8 @@ export function formatTerminalReport(report: Report, options: FormatOptions): st
     formatMetrics(serviceReport.metrics, "");
   };
 
-  // Every string from the report (log-derived or not) is made plain ASCII
-  // first; the only escape codes in the output are the ones paint() adds.
+  
+  
   const safeReport = toPlainAsciiEverywhere(report);
   lines.push(paint("bold", "vika report") + ` - as of ${safeReport.asOf ?? "(no logs read yet)"} (the latest log line read)`);
   safeReport.services.forEach(formatService);
@@ -120,7 +120,7 @@ export function formatTerminalReport(report: Report, options: FormatOptions): st
   return `${lines.join("\n")}\n`;
 }
 
-// A copy of the value with toPlainAscii applied to every string inside it.
+
 function toPlainAsciiEverywhere<Value>(value: Value): Value {
   if (typeof value === "string") return toPlainAscii(value) as Value;
   if (Array.isArray(value)) return value.map((item) => toPlainAsciiEverywhere(item)) as Value;

@@ -1,9 +1,9 @@
-// `vika mark-deploy`: records that a service went live at a commit (the
-// "marker" deploy source). Marking the same sha at the same time twice
-// saves one row.
-//
-// previousSha, when not given, is the latest stored deploy before this
-// one, so the range previousSha..sha is what this deploy shipped.
+
+
+
+
+
+
 import { loadConfiguration, type LoadedConfiguration } from "../configuration/load-configuration.js";
 import { openStore } from "../database/database-store.js";
 import type { Deploy, StoreOptions } from "../database/store-types.js";
@@ -20,17 +20,17 @@ export interface MarkDeployOptions {
   serviceName: string;
   sha: string;
   previousSha?: string;
-  time?: string; // ISO; default: now, from the clock
+  time?: string; 
   clock: () => Date;
 }
 
 export interface MarkDeployResult {
   deploy: Deploy;
-  isNew: boolean; // false if this exact deploy was already saved
+  isNew: boolean; 
   configuration: LoadedConfiguration;
 }
 
-// Full shas only: a short sha can become ambiguous as the repo grows.
+
 function readSha(value: string, optionName: string): string {
   const sha = value.trim().toLowerCase();
   if (!FULL_SHA.test(sha)) throw new Error(`${optionName} must be a full 40-character commit sha (got "${value}")`);
@@ -44,7 +44,7 @@ function readTime(value: string): string {
 }
 
 export async function runMarkDeployCommand(options: MarkDeployOptions): Promise<MarkDeployResult> {
-  // Check the arguments first: no need to touch anything if they're wrong.
+  
   const sha = readSha(options.sha, "--sha");
   const previousSha = options.previousSha === undefined ? undefined : readSha(options.previousSha, "--previous-sha");
   const time = options.time === undefined ? options.clock().toISOString() : readTime(options.time);
@@ -62,8 +62,8 @@ export async function runMarkDeployCommand(options: MarkDeployOptions): Promise<
   return runWithSecretsHidden(configuration, async () => {
     const store = await openStore(configuration.databaseUrl, options.storeOptions);
     try {
-      // The deploy before this one: the latest stored deploy earlier in time,
-      // skipping this same sha (marking a deploy again must not point at itself).
+      
+      
       const earlierDeploys = (await store.listDeploys(options.serviceName)).filter((deploy) => deploy.time < time && deploy.sha !== sha);
       const deploy = buildMarkerDeploy({
         service: options.serviceName,

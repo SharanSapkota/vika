@@ -34,7 +34,7 @@ export interface AttributionInput {
   previousSha: string | null;
   topFrames: Frame[];
   pathMap?: PathMap;
-  language?: Language; // default "javascript"
+  language?: Language; 
   commitsInRange: RangeCommit[];
 }
 

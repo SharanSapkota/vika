@@ -18,8 +18,8 @@ export interface IngestInput {
   logs: LogsSetting;
   configurationDirectory: string;
   redactionKinds: readonly RedactionKind[];
-  language?: Language; // default "javascript"
-  logFormat?: LogFormatSetting; // default "auto"
+  language?: Language; 
+  logFormat?: LogFormatSetting; 
 }
 
 const GLOB_CHARACTERS = /[*?[\]{}]/;

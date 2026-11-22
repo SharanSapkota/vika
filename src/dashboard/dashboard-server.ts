@@ -27,11 +27,11 @@ export interface DashboardServerOptions {
   store: Store;
   fetchFunction: FetchFunction;
   secrets: string[];
-  port: number; // 0 picks a free port (tests)
+  port: number; 
 }
 
 export interface RunningDashboard {
-  address: AddressInfo; // always 127.0.0.1
+  address: AddressInfo; 
   url: string;
   token: string;
   close(): Promise<void>;

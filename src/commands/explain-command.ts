@@ -1,7 +1,7 @@
-// `vika report --explain`, after the report is built: for each regression,
-// show what would be sent, ask, and send only what a person approved. The
-// report that comes back is the same report plus an `explanation` per
-// regression; vika's own ranking is never changed. Nothing here is stored.
+
+
+
+
 import { collectSecrets } from "../configuration/hide-secrets.js";
 import type { LoadedConfiguration } from "../configuration/load-configuration.js";
 import { addExplanationsToReport } from "../explanation/add-explanations-to-report.js";
@@ -20,16 +20,16 @@ export interface ExplainCommandOptions {
   serviceInputs: ServiceReportInput[];
   fetchFunction: FetchFunction;
   explainConsole: ExplainConsole;
-  readDiffs?: typeof readSuspectDiffs; // tests may pass their own
+  readDiffs?: typeof readSuspectDiffs; 
 }
 
 export async function runExplainCommand(options: ExplainCommandOptions): Promise<Report> {
   const { configuration, explainConsole } = options;
   const apiKey = configuration.explain.apiKey;
-  // report-command already stopped when explanations are off or the key is
-  // missing; this is a second lock on the same door.
+  
+  
   if (!configuration.explain.isEnabled || apiKey === null) return options.report;
-  // Checked first, so without a terminal not even git is read for the AI.
+  
   if (!explainConsole.isInteractive) {
     explainConsole.write(`\n${NO_TERMINAL_MESSAGE}\n`);
     return addExplanationsToReport(options.report, []);

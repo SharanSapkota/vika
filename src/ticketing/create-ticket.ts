@@ -1,20 +1,20 @@
-// Files one approved draft in the tracker, at most once. The ONE shared
-// function for creating tickets: plain arguments in, plain data out; no
-// console, no prompts.
-//
-// It runs under the service's run lock, so two overlapping runs can't both
-// file the same deploy. Inside the lock:
-//   1. Already filed (vika's own database)?
-//   2. Yes: if there is a new error group, or the count has at least
-//      doubled since vika last wrote to the ticket, add one comment and
-//      update what's stored. Else "already filed", nothing new.
-//   3. No: ask the tracker for an issue with this deploy's label (a safety
-//      net if vika's database was wiped). If there is one, remember it locally.
-//   4. Else: pick the assignee, create the issue, save it. If saving finds
-//      the row already there, another run got there first: no second issue.
-//
-// Tracker failures come back as status "failed" with a plain-English
-// message that never contains a token. createIssue is never retried.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 import type { Store } from "../database/store-types.js";
 import type { TicketTracker, TrackerUser } from "../ticket-trackers/tracker-types.js";
 import { applyAssignee, makeDeployLabel } from "./build-ticket-draft.js";
@@ -28,7 +28,7 @@ export type CreateTicketOutcome =
   | { status: "created"; issueKey: string; issueUrl: string; assignee: SuggestedAssignee }
   | { status: "commented"; issueKey: string; issueUrl: string; newFingerprints: string[] }
   | { status: "already filed"; issueKey: string; issueUrl: string }
-  | { status: "found in tracker"; issueKey: string; issueUrl: string } // safety net: saved locally, nothing filed
+  | { status: "found in tracker"; issueKey: string; issueUrl: string } 
   | { status: "filed by another run"; issueKey: string; issueUrl: string; message: string }
   | { status: "busy"; message: string }
   | { status: "no tracker configured"; message: string }
@@ -36,13 +36,13 @@ export type CreateTicketOutcome =
 
 export interface CreateTicketInput {
   store: Store;
-  tracker: TicketTracker | null; // null when tracker.type is "none"
+  tracker: TicketTracker | null; 
   draft: TicketDraft;
-  secrets: string[]; // masked out of everything sent to the tracker and every message
+  secrets: string[]; 
 }
 
-// Tracker user ids for the emails that could be the assignee, in the order
-// choose-assignee considers them. Emails the tracker doesn't know are left out.
+
+
 async function lookUpAssigneeCandidates(tracker: TicketTracker, draft: TicketDraft): Promise<Map<string, TrackerUser>> {
   const candidateEmails = [draft.assignmentFacts.topSuspect?.author.email ?? "", ...draft.assignmentFacts.codeOwners.emails];
   const usersByEmail = new Map<string, TrackerUser>();
@@ -54,16 +54,16 @@ async function lookUpAssigneeCandidates(tracker: TicketTracker, draft: TicketDra
 }
 
 async function fileTicket(store: Store, tracker: TicketTracker, draft: TicketDraft, secrets: string[]): Promise<CreateTicketOutcome> {
-  // 1-2. Already filed by vika.
+  
   const existing = await store.findTicket(draft.service, draft.dedupKey);
   if (existing !== undefined) {
     const newFingerprints = draft.regressionFingerprints.filter((fingerprint) => !existing.fingerprints.includes(fingerprint));
-    // Comment only for real news: a new error group, or at least twice as
-    // many occurrences as when vika last wrote to the ticket. An ongoing
-    // error would otherwise add a comment on every run.
+    
+    
+    
     const hasDoubled = draft.totalOccurrences > existing.lastCommentedCount && draft.totalOccurrences >= 2 * existing.lastCommentedCount;
     if (newFingerprints.length === 0 && !hasDoubled) {
-      // Keep the count current without bothering anyone.
+      
       if (draft.totalOccurrences > existing.lastKnownCount) await store.updateTicketCount(draft.service, draft.dedupKey, draft.totalOccurrences);
       return { status: "already filed", issueKey: existing.issueKey, issueUrl: existing.issueUrl };
     }
@@ -82,14 +82,14 @@ async function fileTicket(store: Store, tracker: TicketTracker, draft: TicketDra
     lastKnownCount: draft.totalOccurrences,
   };
 
-  // 3. Not in vika's database, but maybe already in the tracker.
+  
   const issueInTracker = await tracker.findIssueByLabel(makeDeployLabel(draft.deploySha));
   if (issueInTracker !== undefined) {
     await store.saveTicket({ ...ticketRow, ...issueInTracker });
     return { status: "found in tracker", ...issueInTracker };
   }
 
-  // 4. New: choose the assignee with what the tracker knows, then file.
+  
   const usersByEmail = await lookUpAssigneeCandidates(tracker, draft);
   const assignee = chooseAssignee({
     topSuspect: draft.assignmentFacts.topSuspect,
@@ -101,8 +101,8 @@ async function fileTicket(store: Store, tracker: TicketTracker, draft: TicketDra
   const createdIssue = await tracker.createIssue(finalDraft, assigneeId);
   const isSaved = await store.saveTicket({ ...ticketRow, ...createdIssue });
   if (!isSaved) {
-    // Only possible if another run saved this deploy's ticket without the
-    // lock. Never create again; say so, so a person can close the extra one.
+    
+    
     const other = await store.findTicket(draft.service, draft.dedupKey);
     return {
       status: "filed by another run",

@@ -1,10 +1,10 @@
-// The `vika` command line: parses arguments and runs a command. Everything
-// from the outside world (output streams, environment, working directory,
-// clock) is passed in, so tests can run it like a user would.
-//
-// Failures print one plain-English line to stderr and give exit code 1.
-// Nothing printed ever contains a secret: configuration is shown through
-// describeConfigurationSafely, and command errors are masked.
+
+
+
+
+
+
+
 import { resolve } from "node:path";
 import { Command, CommanderError } from "commander";
 import { describeConfigurationSafely } from "../configuration/describe-configuration-safely.js";
@@ -25,22 +25,22 @@ import { chooseRunExitCode, EXIT_CODE_BUSY, EXIT_CODE_OK } from "./run-exit-code
 export interface CliEnvironment {
   writeOutput: (text: string) => void;
   writeError: (text: string) => void;
-  isOutputTerminal: boolean; // colors only on a real terminal
-  isInputTerminal: boolean; // a person can answer questions
-  ask: (question: string) => Promise<string>; // shows the question, returns the typed answer
-  fetchFunction: FetchFunction; // used by --create-tickets, --explain, doctor, serve and the webhook
+  isOutputTerminal: boolean; 
+  isInputTerminal: boolean; 
+  ask: (question: string) => Promise<string>; 
+  fetchFunction: FetchFunction; 
   environment: Record<string, string | undefined>;
   workingDirectory: string;
   clock: () => Date;
-  storeOptions?: StoreOptions; // tests use their own Postgres schema
-  // Resolves when the person asks long-running commands to stop (Ctrl+C).
-  // Without it, `serve` stops right after starting.
+  storeOptions?: StoreOptions; 
+  
+  
   waitForStopSignal?: () => Promise<void>;
 }
 
 export async function runCli(argumentList: string[], cli: CliEnvironment): Promise<number> {
   const program = new Command();
-  // Set before adding commands, so the commands inherit them.
+  
   program
     .configureOutput({ writeOut: cli.writeOutput, writeErr: cli.writeError })
     .exitOverride()
@@ -55,24 +55,24 @@ export async function runCli(argumentList: string[], cli: CliEnvironment): Promi
     ...(cli.storeOptions === undefined ? {} : { storeOptions: cli.storeOptions }),
   });
 
-  // The exit code when the command ran to the end; errors that stop a
-  // command early still give 1 (see the catch at the bottom).
+  
+  
   let finishedExitCode = EXIT_CODE_OK;
 
-  // `report` and `run` do the same work and print the same report. `run` is
-  // for cron: it never asks anything unless a person is at a terminal (no
-  // terminal: no tickets, and it says so), and it uses exit code 2 for busy.
+  
+  
+  
   const runReportFlow = async (options: { config?: string; json?: boolean; createTickets?: boolean; explain?: boolean }, isRunCommand: boolean) => {
-    // `run` has no --explain option at all: cron never sends anything to an AI.
+    
     const isExplainRequested = !isRunCommand && options.explain === true;
     const result = await runReportCommand({
       ...commonOptions(options.config),
       isExplainRequested,
-      // Only `run` posts to the webhook; `report` never does.
+      
       ...(isRunCommand ? { webhookFetchFunction: cli.fetchFunction } : {}),
     });
     const safeConfiguration = describeConfigurationSafely(result.configuration);
-    // With --json, stdout is only the JSON; everything else goes to stderr.
+    
     const writeInfo = options.json ? cli.writeError : cli.writeOutput;
     writeInfo(`Configuration: ${safeConfiguration.configurationFilePath}\nDatabase: ${safeConfiguration.databaseUrl}\n`);
     for (const warning of safeConfiguration.warnings) writeInfo(`Warning: ${warning}\n`);
@@ -83,9 +83,9 @@ export async function runCli(argumentList: string[], cli: CliEnvironment): Promi
       if (serviceStatus.status === "failed") writeInfo(`FAILED ${serviceStatus.serviceName}: ${serviceStatus.message}\n`);
       if (serviceStatus.status === "busy") writeInfo(`BUSY ${serviceStatus.serviceName}: ${serviceStatus.message}\n`);
     }
-    // The AI step runs before the report is printed, so its answers can be
-    // shown with each regression. Its preview and questions go to stderr
-    // with --json. Tickets below always use the report without it.
+    
+    
+    
     const printedReport = isExplainRequested
       ? await runExplainCommand({
           configuration: result.configuration,
@@ -99,20 +99,20 @@ export async function runCli(argumentList: string[], cli: CliEnvironment): Promi
     else cli.writeOutput(`\n${formatTerminalReport(printedReport, { useColor: cli.isOutputTerminal })}`);
 
     let hasTicketFailure = false;
-    // Without the flag, nothing below runs: no tracker is even created.
+    
     if (options.createTickets) {
       const ticketResults = await runCreateTicketsCommand({
         configuration: result.configuration,
         report: result.report,
         fetchFunction: cli.fetchFunction,
-        // Only a person at a terminal can approve; otherwise nothing is filed.
+        
         approvalConsole: { isInteractive: cli.isInputTerminal && cli.isOutputTerminal, write: writeInfo, ask: cli.ask },
         ...(cli.storeOptions === undefined ? {} : { storeOptions: cli.storeOptions }),
       });
       hasTicketFailure = ticketResults.some((ticketResult) => ticketResult.outcome?.status === "failed");
     }
     const exitCode = chooseRunExitCode(result.serviceStatuses, hasTicketFailure);
-    // `report` treats busy as fine (exit 0); only `run` reports it with 2.
+    
     finishedExitCode = !isRunCommand && exitCode === EXIT_CODE_BUSY ? EXIT_CODE_OK : exitCode;
   };
 
@@ -232,7 +232,7 @@ export async function runCli(argumentList: string[], cli: CliEnvironment): Promi
     await program.parseAsync(argumentList, { from: "user" });
     return finishedExitCode;
   } catch (error) {
-    // Commander has already printed its own message (unknown option, --help, ...).
+    
     if (error instanceof CommanderError) return error.exitCode;
     cli.writeError(`vika: ${error instanceof Error ? error.message : String(error)}\n`);
     return 1;

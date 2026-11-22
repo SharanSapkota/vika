@@ -1,4 +1,4 @@
-// The webhook payload for one regression. Pure.
+
 import { createHash } from "node:crypto";
 import { LOG_DERIVED } from "../reporting/report-schema.js";
 import type { ReportRegression } from "../reporting/report-types.js";
@@ -6,8 +6,8 @@ import { REGRESSION_DETECTED_EVENT, WEBHOOK_SCHEMA_VERSION, type WebhookPayload 
 
 const EVENT_ID_LENGTH = 16;
 
-// The same regression always gets the same id (no clock, no randomness), so
-// a receiver can de-duplicate even if it ever sees an event twice.
+
+
 export function makeEventId(service: string, deploySha: string, fingerprint: string): string {
   return createHash("sha256").update(JSON.stringify([service, deploySha, fingerprint])).digest("hex").slice(0, EVENT_ID_LENGTH);
 }

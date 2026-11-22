@@ -1,9 +1,9 @@
-// Linear, through its GraphQL API. The API key goes in the Authorization
-// header as it is, with NO "Bearer" (Linear's personal API keys work that
-// way). Issues are created without a state, so Linear puts them in Backlog.
-//
-// Linear labels are objects, not strings: each label is looked up by name,
-// created if missing, and its id is cached for the rest of the run.
+
+
+
+
+
+
 import { renderMarkdown } from "../ticketing/render-ticket-text.js";
 import { sendTrackerRequest, TrackerError } from "./send-tracker-request.js";
 import { TRACKER_TIMEOUT_MS, type FetchFunction, type TicketTracker } from "./tracker-types.js";
@@ -11,8 +11,8 @@ import { TRACKER_TIMEOUT_MS, type FetchFunction, type TicketTracker } from "./tr
 export const LINEAR_API_URL = "https://api.linear.app/graphql";
 
 export interface LinearTrackerOptions {
-  apiKey: string; // LINEAR_API_KEY
-  teamKey: string; // tracker.team, e.g. "ENG"
+  apiKey: string; 
+  teamKey: string; 
   fetchFunction: FetchFunction;
   timeoutMs?: number;
   secrets: string[];
@@ -39,7 +39,7 @@ export function createLinearTracker(options: LinearTrackerOptions): TicketTracke
       timeoutMs: options.timeoutMs ?? TRACKER_TIMEOUT_MS,
       secrets: options.secrets,
     })) as GraphqlAnswer;
-    // Linear reports some failures inside a 200 answer.
+    
     const firstError = answer.errors?.[0];
     if (firstError !== undefined) {
       const code = `${firstError.extensions?.code ?? ""} ${firstError.extensions?.type ?? ""}`.toLowerCase();
@@ -62,7 +62,7 @@ export function createLinearTracker(options: LinearTrackerOptions): TicketTracke
     return foundId;
   }
 
-  // The id of the label with this name, created first if it doesn't exist.
+  
   async function findOrCreateLabelId(labelName: string): Promise<string> {
     const cachedId = labelIdsByName.get(labelName);
     if (cachedId !== undefined) return cachedId;
@@ -116,7 +116,7 @@ export function createLinearTracker(options: LinearTrackerOptions): TicketTracke
     },
 
     async addComment(issueKey, text) {
-      // Comments need the issue's id, not its "ENG-45" identifier.
+      
       const found = await runGraphql<{ issue: { id: string } | null }>("query IssueId($id: String!) { issue(id: $id) { id } }", { id: issueKey });
       if (found.issue === null) throw new TrackerError(`Linear has no issue ${issueKey}.`, 404);
       await runGraphql("mutation AddComment($input: CommentCreateInput!) { commentCreate(input: $input) { success } }", {

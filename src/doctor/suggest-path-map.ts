@@ -13,9 +13,9 @@ export async function adviseOnPathMap(
   pathMap: PathMap | undefined,
   doesRepoFileExist: (repoPath: string) => Promise<boolean>,
 ): Promise<PathMapAdvice> {
-  // Library frames (node_modules, Python's site-packages, dist-packages and
-  // standard library) are never in the customer's repo, so they say nothing
-  // about the pathMap.
+  
+  
+  
   const appFramePaths = [...new Set(framePaths)].filter(
     (framePath) => !framePath.includes("node_modules/") && !isPythonLibraryFrame(framePath) && !/^[A-Za-z]+:/.test(framePath),
   );

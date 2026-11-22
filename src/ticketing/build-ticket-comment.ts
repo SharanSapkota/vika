@@ -1,5 +1,5 @@
-// The comment vika adds to a ticket it already filed, when a later run
-// finds a new error group on the same deploy or more occurrences. Pure.
+
+
 import type { TicketDraft } from "./ticket-types.js";
 
 export function buildTicketComment(draft: TicketDraft, newFingerprints: string[], previousCount: number): string {

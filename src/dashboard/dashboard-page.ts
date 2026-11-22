@@ -239,8 +239,8 @@ export function renderDashboardPage(token: string, nonce: string): string {
 `;
 }
 
-// Only our own inline script and style may run, and the page may only talk
-// to the server that served it.
+
+
 export function makeContentSecurityPolicy(nonce: string): string {
   return [
     "default-src 'none'",

@@ -1,7 +1,7 @@
 import { LINE_START_READERS } from "./line-readers.js";
 import { LOG_FORMATS, type LogFormat } from "./log-entry-types.js";
 
-// How many lines one format can read (as an entry or as a line it drops).
+
 export function countRecognizedLines(sampleLines: string[], format: LogFormat): number {
   let recognizedCount = 0;
   for (const line of sampleLines) {

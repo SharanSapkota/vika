@@ -20,7 +20,7 @@ export function findDatabaseUrlWarnings(databaseUrl: URL): string[] {
       'DATABASE_URL points at a connection pooler ("-pooler" in the host). Advisory locks can break through a pooler; use the direct connection string.',
     );
   }
-  // An empty host means a local Unix socket.
+  
   const isLocal = hostname === "" || LOCAL_HOSTS.has(hostname);
   if (!isLocal && !databaseUrl.searchParams.has("sslmode")) {
     warnings.push("DATABASE_URL is not on localhost and has no sslmode. Add ?sslmode=require so the connection is encrypted.");

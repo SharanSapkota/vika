@@ -1,5 +1,5 @@
-// The optional AI step. Doctor only reads the settings: it never calls the
-// AI provider, so running it costs nothing and sends nothing.
+
+
 import type { LoadedConfiguration } from "../configuration/load-configuration.js";
 import { failCheck, passCheck, type DoctorCheck } from "./doctor-check-types.js";
 

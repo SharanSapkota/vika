@@ -1,4 +1,4 @@
-// The tracker client for the configuration, or null for tracker type "none".
+
 import type { LoadedConfiguration } from "../configuration/load-configuration.js";
 import { createJiraTracker } from "./jira-tracker.js";
 import { createLinearTracker } from "./linear-tracker.js";

@@ -21,8 +21,8 @@ export interface LogsCheckInput {
   pathMap: PathMap | undefined;
   doesRepoFileExist: ((repoPath: string) => Promise<boolean>) | undefined;
   commandTimeoutMs?: number;
-  language?: Language; // default "javascript"
-  logFormat?: LogFormatSetting; // default "auto"
+  language?: Language; 
+  logFormat?: LogFormatSetting; 
 }
 
 const joinWithOr = (values: readonly string[]) => `${values.slice(0, -1).join(", ")} or ${values.at(-1)}`;
@@ -96,7 +96,7 @@ export async function checkServiceLogs(input: LogsCheckInput): Promise<DoctorChe
     return checks;
   }
   const language = input.language ?? DEFAULT_LANGUAGE;
-  // A logFormat other than "auto" is used as it is, without guessing.
+  
   const setFormat = input.logFormat === undefined || input.logFormat === "auto" ? undefined : input.logFormat;
   const isFormatSet = setFormat !== undefined;
   const { format, recognizedCount } =

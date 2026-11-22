@@ -1,6 +1,6 @@
-// Spots text that looks like a hard-coded secret in a code diff. Redaction
-// only knows emails, tokens, IPs and card numbers; code can hold API keys and
-// private keys too. A diff that matches is never sent to the AI.
+
+
+
 const POSSIBLE_SECRET_PATTERNS: { description: string; pattern: RegExp }[] = [
   { description: "an sk- API key", pattern: /\bsk-[A-Za-z0-9_-]{16,}/ },
   { description: "an AWS access key", pattern: /\b(?:AKIA|ASIA)[0-9A-Z]{16}\b/ },
@@ -12,7 +12,7 @@ const POSSIBLE_SECRET_PATTERNS: { description: string; pattern: RegExp }[] = [
   },
 ];
 
-// The description of the first match, or null when nothing looks secret.
+
 export function findPossibleSecret(text: string): string | null {
   const match = POSSIBLE_SECRET_PATTERNS.find((candidate) => candidate.pattern.test(text));
   return match === undefined ? null : match.description;

@@ -12,6 +12,6 @@ export async function readGitHubNewIssueUrl(repoPath: string): Promise<string | 
     const remote = await runGit(repoPath, ["remote", "get-url", "origin"]);
     return remote.exitCode === 0 ? makeGitHubNewIssueUrl(remote.stdout) : null;
   } catch {
-    return null; // not a repo, or git can't run there: no link
+    return null; 
   }
 }

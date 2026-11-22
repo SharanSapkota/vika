@@ -1,4 +1,4 @@
-// The only file that talks to Postgres. All SQL lives here.
+
 import { readdirSync, readFileSync } from "node:fs";
 import pg from "pg";
 import { NORMALIZER_VERSION } from "../error-grouping/normalize-message.js";
@@ -8,8 +8,8 @@ import type { Bookmark, Deploy, StoredCluster, StoredWebhookEvent, Store, StoreO
 
 export type { Batch, Bookmark, Deploy, StoredCluster, Store, StoreOptions } from "./store-types.js";
 
-// Advisory lock ids ("vika" and "vikb" as hex), so they don't clash with
-// locks other apps on the same database may take.
+
+
 const MIGRATION_LOCK_ID = 0x76696b61;
 const RUN_LOCK_ID = 0x76696b62;
 
@@ -23,7 +23,7 @@ function migrationFiles(): string[] {
     .sort();
 }
 
-// A client that threw is released as broken, so the pool doesn't reuse it.
+
 async function withClient<T>(pool: pg.Pool, work: (client: pg.PoolClient) => Promise<T>): Promise<T> {
   const client = await pool.connect();
   let failed = false;
@@ -44,7 +44,7 @@ async function inTransaction<T>(client: pg.PoolClient, work: () => Promise<T>): 
     await client.query("COMMIT");
     return result;
   } catch (error) {
-    await client.query("ROLLBACK").catch(() => {}); // the original error matters more
+    await client.query("ROLLBACK").catch(() => {}); 
     throw error;
   }
 }
@@ -53,7 +53,7 @@ async function migrate(pool: pg.Pool, schema: string | undefined): Promise<void>
   await withClient(pool, async (client) => {
     await client.query("SELECT pg_advisory_lock($1, 0)", [MIGRATION_LOCK_ID]);
     try {
-      // The name was checked against SCHEMA_NAME_PATTERN, so it is safe to put in SQL.
+      
       if (schema !== undefined) await client.query(`CREATE SCHEMA IF NOT EXISTS ${schema}`);
       await client.query(
         "CREATE TABLE IF NOT EXISTS schema_migrations (version text PRIMARY KEY, applied_at timestamptz NOT NULL DEFAULT now())",
@@ -80,8 +80,8 @@ async function migrate(pool: pg.Pool, schema: string | undefined): Promise<void>
   });
 }
 
-// SQL for "the first 3 distinct values of existing followed by incoming",
-// keeping their original order.
+
+
 const firstThreeDistinctSql = (existing: string, incoming: string) => `(
   SELECT COALESCE(jsonb_agg(value ORDER BY pos), '[]'::jsonb)
   FROM (
@@ -114,7 +114,7 @@ const SAVE_MINER_STATE = `
   INSERT INTO miner_state (service, state) VALUES ($1, $2::jsonb)
   ON CONFLICT (service) DO UPDATE SET state = EXCLUDED.state`;
 
-// first_read_at is written once: COALESCE keeps the value already stored.
+
 const SAVE_BOOKMARK = `
   INSERT INTO bookmarks (service, source_key, byte_offset, inode, last_timestamp, first_read_at) VALUES ($1, $2, $3, $4, $5, $6)
   ON CONFLICT (service, source_key) DO UPDATE SET
@@ -270,7 +270,7 @@ export async function openStore(databaseUrl: string, options: StoreOptions = {})
       };
     },
 
-    // Per-minute counts in [fromTime, toTime), oldest first.
+    
     async getClusterCounts(service, fingerprint, fromTime, toTime) {
       const { rows } = await pool.query<{ minute: Date; count: number }>(
         `SELECT minute, count FROM cluster_counts
@@ -310,7 +310,7 @@ export async function openStore(databaseUrl: string, options: StoreOptions = {})
       return rows.map((row) => ({ service, sha: row.sha, previousSha: row.previous_sha, time: toIsoTimestamp(row.time), source: row.source }));
     },
 
-    // The lock key includes the schema, so tests in separate schemas never block each other.
+    
     async withRunLock(service, work) {
       return withClient(pool, async (client) => {
         const lockArguments = [RUN_LOCK_ID, service];
@@ -359,7 +359,7 @@ export async function openStore(databaseUrl: string, options: StoreOptions = {})
     },
 
     async saveTicket(ticket) {
-      // Filing the ticket counts as the first time vika wrote to it.
+      
       const result = await pool.query(
         `INSERT INTO tickets (service, dedup_key, issue_key, issue_url, tracker_type, deploy_sha, fingerprints, last_known_count, last_commented_count)
          VALUES ($1, $2, $3, $4, $5, $6, $7::jsonb, $8, $8)
@@ -428,12 +428,12 @@ export async function openStore(databaseUrl: string, options: StoreOptions = {})
     },
 
     async deleteServiceData(service) {
-      // Counts before clusters, because deleting a cluster also deletes its counts.
+      
       const tables = ["cluster_counts", "clusters", "bookmarks", "miner_state", "deploys", "tickets", "webhook_events"];
       return withClient(pool, (client) =>
         inTransaction(client, async () => {
           const deletedRows: Record<string, number> = {};
-          // The table names are fixed above, never from input, so they are safe in SQL.
+          
           for (const table of tables) deletedRows[table] = (await client.query(`DELETE FROM ${table} WHERE service = $1`, [service])).rowCount ?? 0;
           return deletedRows;
         }),
@@ -451,26 +451,26 @@ export async function openStore(databaseUrl: string, options: StoreOptions = {})
   };
 }
 
-// ---------------------------------------------------------------------------
-// Read-only inspection, for `vika doctor`
-// ---------------------------------------------------------------------------
 
-// What doctor learns from the database. Connecting never migrates and never
-// writes: doctor only looks.
+
+
+
+
+
 export type DatabaseInspection =
   | {
       status: "connected";
       appliedMigrations: string[];
-      availableMigrations: string[]; // the migration files vika ships with
-      deploysByService: Record<string, Deploy[]>; // oldest first
+      availableMigrations: string[]; 
+      deploysByService: Record<string, Deploy[]>; 
     }
   | { status: "unreachable" | "wrong-password" | "missing-database" | "failed"; detail: string };
 
 const CONNECT_TIMEOUT_MS = 5_000;
 const UNREACHABLE_CODES = new Set(["ECONNREFUSED", "ENOTFOUND", "EAI_AGAIN", "ETIMEDOUT", "EHOSTUNREACH", "ENETUNREACH", "ECONNRESET"]);
 
-// Postgres error codes: 28P01 / 28000 = login refused, 3D000 = no such
-// database, 42P01 = no such table (vika's tables don't exist yet).
+
+
 function classifyConnectionError(error: unknown): DatabaseInspection {
   const code = (error as { code?: string }).code ?? "";
   const detail = error instanceof Error ? error.message : String(error);
