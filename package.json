@@ -1,5 +1,5 @@
 {
-  "name": "vika",
+  "name": "vika-cli",
   "version": "0.1.0",
   "description": "Finds error patterns that first appeared after a deploy and names the suspect commit/PR.",
   "type": "module",
@@ -18,7 +18,7 @@
   },
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
-    "prepublishOnly": "npm run build",
+    "prepublishOnly": "rm -rf dist && npm run build",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run",
     "demo:fixture": "tsx scripts/build-demo-fixture.ts",
