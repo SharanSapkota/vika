@@ -5,10 +5,12 @@ import { appendFileSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { buildClusters, emptyState, type Cluster } from "../src/cluster.js";
-import { parseLines } from "../src/parse/index.js";
-import { readFile } from "../src/parse/source.js";
-import { openStore, type Batch, type Bookmark, type Store } from "../src/store.js";
+import { buildClusters } from "../src/error-grouping/build-clusters.js";
+import type { Cluster } from "../src/error-grouping/cluster-types.js";
+import { emptyState } from "../src/error-grouping/template-miner.js";
+import { parseLines } from "../src/log-parsing/parse-log-lines.js";
+import { readFile } from "../src/log-parsing/read-log-file.js";
+import { openStore, type Batch, type Bookmark, type Store } from "../src/database/database-store.js";
 import { BACKGROUND_ERROR, buildFixture, type Fixture } from "./fixture/build.js";
 
 function testUrl(): string {
@@ -56,10 +58,10 @@ afterAll(async () => {
 
 describe("migrations", () => {
   it("apply once; opening the store again doesn't fail or repeat them", async () => {
-    expect(await store.appliedMigrations()).toEqual(["001_init"]);
+    expect(await store.appliedMigrations()).toEqual(["001_init", "002_bookmark_history_start", "003_tickets", "004_ticket_comment_count", "005_webhook_events"]);
     const second = await openStore(testUrl(), { schema });
     try {
-      expect(await second.appliedMigrations()).toEqual(["001_init"]);
+      expect(await second.appliedMigrations()).toEqual(["001_init", "002_bookmark_history_start", "003_tickets", "004_ticket_comment_count", "005_webhook_events"]);
     } finally {
       await second.close();
     }
@@ -69,8 +71,8 @@ describe("migrations", () => {
     const other = freshSchema();
     const [a, b] = await Promise.all([openStore(testUrl(), { schema: other }), openStore(testUrl(), { schema: other })]);
     try {
-      expect(await a.appliedMigrations()).toEqual(["001_init"]);
-      expect(await b.appliedMigrations()).toEqual(["001_init"]);
+      expect(await a.appliedMigrations()).toEqual(["001_init", "002_bookmark_history_start", "003_tickets", "004_ticket_comment_count", "005_webhook_events"]);
+      expect(await b.appliedMigrations()).toEqual(["001_init", "002_bookmark_history_start", "003_tickets", "004_ticket_comment_count", "005_webhook_events"]);
     } finally {
       await Promise.all([a.close(), b.close()]);
     }
@@ -194,6 +196,19 @@ describe("deploys", () => {
     expect(await store.saveDeploy(deploy)).toBe(true);
     expect(await store.saveDeploy(deploy)).toBe(false);
     expect(await store.listDeploys("deploys")).toEqual([deploy]);
+  });
+});
+
+describe("deleteServiceData", () => {
+  it("deletes one service's rows and leaves other services alone", async () => {
+    const deployFor = (service: string) => ({ service, sha: "d".repeat(40), previousSha: null, time: "2026-03-06T14:00:00.000Z", source: "marker" });
+    await store.saveDeploy(deployFor("to-delete"));
+    await store.saveDeploy(deployFor("to-keep"));
+    const deletedRows = await store.deleteServiceData("to-delete");
+    expect(deletedRows.deploys).toBe(1);
+    expect(Object.keys(deletedRows)).toEqual(["cluster_counts", "clusters", "bookmarks", "miner_state", "deploys", "tickets", "webhook_events"]);
+    expect(await store.listDeploys("to-delete")).toEqual([]);
+    expect(await store.listDeploys("to-keep")).toHaveLength(1);
   });
 });
 

@@ -2,10 +2,13 @@
 // text parser on the fixture's app.log.
 import { readFileSync, rmSync } from "node:fs";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { detectFormat, lineTimestamp, parseLines, type LogEntry } from "../src/parse/index.js";
-import { parseJson } from "../src/parse/json.js";
-import { parseNginx } from "../src/parse/nginx.js";
-import { parseText } from "../src/parse/text.js";
+import { detectFormat } from "../src/log-parsing/detect-log-format.js";
+import { parseJson } from "../src/log-parsing/json-log-format.js";
+import type { LogEntry } from "../src/log-parsing/log-entry-types.js";
+import { parseNginx } from "../src/log-parsing/nginx-log-format.js";
+import { parseLines } from "../src/log-parsing/parse-log-lines.js";
+import { lineTimestamp } from "../src/log-parsing/read-line-timestamp.js";
+import { parseText } from "../src/log-parsing/text-log-format.js";
 import { BACKGROUND_ERROR, buildFixture, type Fixture } from "./fixture/build.js";
 
 const IPV4 = /\b\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\b/;
@@ -236,5 +239,14 @@ describe("lineTimestamp", () => {
     expect(lineTimestamp("2026/03/06 14:00:00 [info] 1#0: x")).toBe("2026-03-06T14:00:00.000Z");
     expect(lineTimestamp("2026-03-06T14:00:00Z SOMETHING odd")).toBe("2026-03-06T14:00:00.000Z");
     expect(lineTimestamp("    at f (/a.ts:1:1)")).toBeUndefined();
+  });
+});
+
+describe("parseLines and the redact setting", () => {
+  it("redacts only the configured kinds in messages", () => {
+    const lines = ["2026-03-06T14:04:00Z ERROR login failed for jane@example.com from 203.0.113.9"];
+    expect(parseLines(lines).entries[0]!.message).toBe("login failed for <email> from <ip>");
+    expect(parseLines(lines, undefined, ["email"]).entries[0]!.message).toBe("login failed for <email> from 203.0.113.9");
+    expect(parseLines(lines, "text", ["ip"]).entries[0]!.message).toBe("login failed for jane@example.com from <ip>");
   });
 });

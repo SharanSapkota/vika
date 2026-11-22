@@ -18,10 +18,10 @@ function sourceFiles(dir: string): string[] {
 const IMPORTS_PG = /(?:\bfrom\s*|\bimport\s*\(?\s*|\brequire\s*\(\s*)["']pg(?:\/[^"']*)?["']/;
 
 describe("architecture", () => {
-  it('only src/store.ts imports "pg"', () => {
+  it('only src/database/database-store.ts imports "pg"', () => {
     const files = sourceFiles(SRC);
     expect(files.length).toBeGreaterThan(5);
-    const importers = files.filter((f) => IMPORTS_PG.test(readFileSync(f, "utf8"))).map((f) => relative(SRC, f));
-    expect(importers).toEqual(["store.ts"]);
+    const importers = files.filter((file) => IMPORTS_PG.test(readFileSync(file, "utf8"))).map((file) => relative(SRC, file));
+    expect(importers).toEqual([join("database", "database-store.ts")]);
   });
 });

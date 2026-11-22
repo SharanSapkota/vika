@@ -1,6 +1,6 @@
 // Tests redact(): each kind of secret is replaced, everything else is left alone.
 import { describe, expect, it } from "vitest";
-import { redact } from "../src/redact.js";
+import { redact } from "../src/redaction/redact-sensitive-text.js";
 
 const JWT =
   "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4ifQ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c";
@@ -44,5 +44,28 @@ describe("redact", () => {
       "std::vector<int> and a @mention",
     ].join("\n");
     expect(redact(clean)).toBe(clean);
+  });
+});
+
+describe("redact with a chosen list of kinds", () => {
+  const MESSAGE = `user jane@example.com from 203.0.113.9 paid with 4111 1111 1111 1111 using ${JWT}`;
+  const FULLY_REDACTED = "user <email> from <ip> paid with <card> using <token>";
+
+  it("redacts all four kinds by default", () => {
+    expect(redact(MESSAGE)).toBe(FULLY_REDACTED);
+    expect(redact(MESSAGE, ["email", "jwt", "ip", "cardlike"])).toBe(FULLY_REDACTED);
+  });
+
+  it("turns each kind on and off on its own", () => {
+    expect(redact(MESSAGE, ["jwt", "ip", "cardlike"])).toBe("user jane@example.com from <ip> paid with <card> using <token>");
+    expect(redact(MESSAGE, ["email", "ip", "cardlike"])).toBe(`user <email> from <ip> paid with <card> using ${JWT}`);
+    expect(redact(MESSAGE, ["email", "jwt", "cardlike"])).toBe("user <email> from 203.0.113.9 paid with <card> using <token>");
+    expect(redact(MESSAGE, ["email", "jwt", "ip"])).toBe("user <email> from <ip> paid with 4111 1111 1111 1111 using <token>");
+    expect(redact(MESSAGE, ["email"])).toBe(`user <email> from 203.0.113.9 paid with 4111 1111 1111 1111 using ${JWT}`);
+  });
+
+  it('counts bearer tokens as "jwt"', () => {
+    expect(redact("Authorization: Bearer abc123.def-456_ghi", ["email"])).toBe("Authorization: Bearer abc123.def-456_ghi");
+    expect(redact("Authorization: Bearer abc123.def-456_ghi", ["jwt"])).toBe("Authorization: Bearer <token>");
   });
 });

@@ -3,7 +3,8 @@ import { appendFileSync, mkdtempSync, renameSync, rmSync, writeFileSync } from "
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterAll, describe, expect, it } from "vitest";
-import { readCommand, readFile } from "../src/parse/source.js";
+import { readCommand } from "../src/log-parsing/read-log-command.js";
+import { readFile } from "../src/log-parsing/read-log-file.js";
 
 const dir = mkdtempSync(join(tmpdir(), "vika-source-"));
 afterAll(() => rmSync(dir, { recursive: true, force: true }));

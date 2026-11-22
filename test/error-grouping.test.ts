@@ -1,8 +1,11 @@
 
 import { readFileSync, rmSync } from "node:fs";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { addMessage, buildClusters, emptyState, exportState, importState, normalize, type MinerState } from "../src/cluster.js";
-import { parseLines, type LogEntry } from "../src/parse/index.js";
+import { buildClusters } from "../src/error-grouping/build-clusters.js";
+import { normalize } from "../src/error-grouping/normalize-message.js";
+import { addMessage, emptyState, exportState, importState, type MinerState } from "../src/error-grouping/template-miner.js";
+import type { LogEntry } from "../src/log-parsing/log-entry-types.js";
+import { parseLines } from "../src/log-parsing/parse-log-lines.js";
 import { BACKGROUND_ERROR, buildFixture, type Fixture } from "./fixture/build.js";
 
 const msg = (message: string, timestamp = "2026-03-06T14:00:00.000Z"): LogEntry => ({ timestamp, level: "ERROR", message, frames: [] });
@@ -198,5 +201,23 @@ describe("buildClusters on the fixture app.log", () => {
   it("is deterministic: same input twice gives identical output", () => {
     expect(buildClusters(entries, "shopfront")).toEqual(buildClusters(entries, "shopfront"));
     expect(JSON.stringify(buildClusters(entries, "shopfront"))).toBe(JSON.stringify(buildClusters(entries, "shopfront")));
+  });
+});
+
+describe("buildClusters and the redact setting", () => {
+  const entry = (message: string): LogEntry => ({ timestamp: "2026-03-06T14:04:00.000Z", level: "ERROR", message, frames: [] });
+  const entries = [entry("login failed for jane@example.com from 203.0.113.9"), entry("login failed for sam@example.org from 198.51.100.4")];
+
+  it("groups the same whatever the redact list, so changing it never creates 'new' groups", () => {
+    const allKinds = buildClusters(entries, "api");
+    const ipOnly = buildClusters(entries, "api", undefined, ["ip"]);
+    expect(ipOnly.clusters.map((cluster) => cluster.fingerprint)).toEqual(allKinds.clusters.map((cluster) => cluster.fingerprint));
+    expect(ipOnly.clusters.map((cluster) => cluster.template)).toEqual(allKinds.clusters.map((cluster) => cluster.template));
+    expect(allKinds.clusters).toHaveLength(1);
+  });
+
+  it("but stores examples redacted with the configured kinds only", () => {
+    expect(buildClusters(entries, "api").clusters[0]!.examples[0]).toBe("login failed for <email> from <ip>");
+    expect(buildClusters(entries, "api", undefined, ["ip"]).clusters[0]!.examples[0]).toBe("login failed for jane@example.com from <ip>");
   });
 });

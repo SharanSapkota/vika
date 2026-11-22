@@ -1,0 +1,33 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`formatTerminalReport > prints the fixture report (snapshot) 1`] = `
+"vika report - as of 2026-03-10T23:56:42.923Z (the latest log line read)
+
+== shopfront ==
+Log lines in: 255 error/warning lines -> 2 error groups
+Deploys: 5 (4 judged, 1 failed)
+Regressions: 1
+  1. NEW error after deploy f822ffb (2026-03-06T14:00:00.000Z)   severity: high
+     TypeError: Cannot read properties of undefined (reading 'amount')
+     first seen 2026-03-06T14:04:07.312Z; 124 times since (1.8 per hour; 0 per hour before)
+     status: ongoing
+     Suspects:
+       1) PR #812  commit b5f679e  Tomas Ortega <tomas@example.com>
+          src/orders/service.ts:22   confidence: high (blamed-line-changed)
+          why: Line 22 of src/orders/service.ts, where the error is thrown, was last changed by this commit.
+       2) PR #809  commit d31c33b  Mei Chen <mei@example.com>
+          src/orders/service.ts:22   confidence: medium (same-function-changed)
+          why: This commit changed createOrder() in src/orders/service.ts, the function where the error is thrown.
+       3) PR #813  commit f822ffb  Priya Raman <priya@example.com>
+          src/api/handlers.ts   confidence: medium (file-changed)
+          why: This commit changed src/api/handlers.ts, which appears in the stack trace.
+Change failure rate (log-derived): 25% (1 of 4 judged deploys)
+Median time to restore (log-derived): not enough data (no restored regressions)
+Ongoing regressions (log-derived): 1
+
+== All services ==
+Change failure rate (log-derived): 25% (1 of 4 judged deploys)
+Median time to restore (log-derived): not enough data (no restored regressions)
+Ongoing regressions (log-derived): 1
+"
+`;
