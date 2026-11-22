@@ -6,11 +6,10 @@ Vika reads your server logs and your git history. It finds errors that **started
 
 It runs **inside your own environment**. Your logs and source code never leave your machine. It works for one app (monolith) or many apps (microservices).
 
-> Version 0.1.0. This is an early release. See "Known limits" at the end.
 
 ---
 
-## What problem does it solve?
+## What it does?
 
 Your team deploys new code. A few minutes later, a new error shows up in the logs. Normally someone has to dig through thousands of log lines and the git history to find out which change caused it.
 
@@ -99,19 +98,6 @@ vika doctor
 
 ---
 
-## Tell Vika about your deploys
-
-Vika needs to know **when each version went live**. The most accurate way is to add one line to your deploy script, right after the new version starts:
-
-```sh
-vika mark-deploy --service myapp --sha $(git -C /srv/repos/myapp rev-parse HEAD)
-```
-
-Optional flags: `--previous-sha <sha>` and `--time <ISO time>`. By default the time is "now".
-
-If you skip this and use `deploys: { source: merges }`, Vika treats every merge to your production branch as a deploy. That needs no setup, but it is rough.
-
----
 
 ## Run it all the time
 
@@ -262,13 +248,7 @@ pathMap:
 
 `vika doctor` suggests a `pathMap` when it sees a mismatch.
 
-### Microservices and monorepos
 
-Add one entry under `services:` per service. Each service has its own repo, logs, branch and deploy history, and is analyzed on its own. A deploy of one service is never blamed for another service's errors.
-
-For a monorepo, give every service the same `repo` and its own `pathPrefix`. A deploy only counts for a service if the commit changed files under that folder.
-
----
 
 ## Creating tickets
 
@@ -285,20 +265,6 @@ What you get:
 
 ---
 
-## Privacy and safety
-
-- Raw logs and source code stay on your machine.
-- Vika stores only summaries in its own database: counts per minute, first and last seen, and up to 3 **redacted** examples per error group. It never stores raw log lines.
-- Emails, tokens, IP addresses and card-like numbers are
-
-## Setup
-
-Needs Node.js 20.12+ and Docker.
-
-```sh
-npm install
-cp .env.example .env
-```
 
 ## Start Postgres
 
